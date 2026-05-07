@@ -66,6 +66,7 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **REST API server** — HTTP interface for /create, /validate, /encode, /transcode, /jobs
 - **EDL/FCP XML import** — parse CMX 3600 EDL and Final Cut Pro XML timelines
 - **Plugin system** — discover and execute Python plugin scripts with pre/post hooks
+- **SDI output (Blackmagic DeckLink)** — play J2K frames over HD-SDI via GStreamer decklinkvideosink
 
 ### Workflow & Automation
 - **Delivery presets** — Netflix, Disney+, Amazon, Apple TV+, Cinema 2K/4K, Broadcast, Archival
@@ -463,6 +464,22 @@ imfwizard retime -i subs_24.ttml -o subs_25.ttml --src-fps-num 24 --tgt-fps-num 
 
 # Retime SRT from 23.976 to 24fps
 imfwizard retime -i subs.srt -o subs_24.srt --src-fps-num 24000 --src-fps-den 1001 --tgt-fps-num 24
+```
+
+### SDI output (Blackmagic DeckLink)
+
+```bash
+# List available DeckLink devices
+imfwizard sdi-preview --list-devices
+
+# Play J2K frames out over SDI on device 0 at 24fps
+imfwizard sdi-preview -i /path/to/j2k_frames/ --device 0 --fps-num 24
+
+# Play with embedded audio, loop, UHD mode
+imfwizard sdi-preview -i /path/to/j2k/ --audio mix.wav --loop --width 3840 --height 2160
+
+# Play from MXF directly
+imfwizard sdi-preview -i video.mxf --device 0
 ```
 
 ## Architecture

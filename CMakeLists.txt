@@ -94,7 +94,8 @@ add_library(imfwizard_core STATIC
     src/cpl_annotation.cpp
     src/partial_version.cpp
     src/slate.cpp
-    src/subtitle_retime.cpp)
+    src/subtitle_retime.cpp
+    src/sdi_output.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include

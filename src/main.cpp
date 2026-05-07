@@ -39,6 +39,7 @@
 #include "imfwizard/partial_version.h"
 #include "imfwizard/slate.h"
 #include "imfwizard/subtitle_retime.h"
+#include "imfwizard/sdi_output.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <cinttypes>
@@ -527,6 +528,25 @@ int main(int argc, char* argv[])
   retime_cmd->add_option("--tgt-fps-den", rt_tgt_fps_d, "Target FPS denominator")->default_val(1);
   retime_cmd->add_flag("--stretch,!--no-stretch", rt_stretch, "Stretch timing (vs recount frames)");
 
+  // === SDI-PREVIEW subcommand ===
+  auto* sdi_cmd = app.add_subcommand("sdi-preview", "Play frames over SDI via DeckLink (GStreamer)");
+  std::string sdi_input, sdi_audio, sdi_pixel = "v210";
+  uint32_t sdi_device = 0, sdi_fps_n = 24, sdi_fps_d = 1;
+  uint32_t sdi_width = 1920, sdi_height = 1080;
+  uint32_t sdi_start = 0, sdi_end = 0;
+  bool sdi_loop = false, sdi_list = false;
+  sdi_cmd->add_option("--input,-i", sdi_input, "J2K frame directory or MXF file");
+  sdi_cmd->add_option("--audio", sdi_audio, "Audio file for embedded SDI audio");
+  sdi_cmd->add_option("--device", sdi_device, "DeckLink device number")->default_val(0);
+  sdi_cmd->add_option("--fps-num", sdi_fps_n, "Frame rate numerator")->default_val(24);
+  sdi_cmd->add_option("--fps-den", sdi_fps_d, "Frame rate denominator")->default_val(1);
+  sdi_cmd->add_option("--width", sdi_width, "Frame width")->default_val(1920);
+  sdi_cmd->add_option("--height", sdi_height, "Frame height")->default_val(1080);
+  sdi_cmd->add_option("--pixel-format", sdi_pixel, "Pixel format (v210, ARGB)")->default_val("v210");
+  sdi_cmd->add_option("--start", sdi_start, "Start frame");
+  sdi_cmd->add_option("--end", sdi_end, "End frame (0=all)");
+  sdi_cmd->add_flag("--loop", sdi_loop, "Loop playback");
+  sdi_cmd->add_flag("--list-devices", sdi_list, "List available SDI devices");
 
   CLI11_PARSE(app, argc, argv);
 
@@ -1556,6 +1576,51 @@ int main(int argc, char* argv[])
     }
     std::cout << "Retimed: " << result.output_file.string() << "\n";
     std::cout << "Entries: " << result.entries_processed << "\n";
+    return 0;
+  }
+  if(sdi_cmd->parsed())
+  {
+    if(sdi_list)
+    {
+      auto devices = imfwizard::list_sdi_devices();
+      if(devices.empty())
+      {
+        std::cout << "No DeckLink SDI devices found.\n";
+        if(!imfwizard::decklink_available())
+          std::cout << "Note: GStreamer decklink plugin not installed.\n";
+      }
+      else
+      {
+        for(auto& d : devices)
+          std::cout << "  [" << d.index << "] " << d.name << " (" << d.driver << ")\n";
+      }
+      return 0;
+    }
+    if(sdi_input.empty())
+    {
+      std::cerr << "Error: --input is required (use --list-devices to enumerate)\n";
+      return 1;
+    }
+    imfwizard::SdiOutputOptions opts;
+    opts.input_dir = sdi_input;
+    if(!sdi_audio.empty())
+      opts.audio_file = sdi_audio;
+    opts.device_index = sdi_device;
+    opts.fps_num = sdi_fps_n;
+    opts.fps_den = sdi_fps_d;
+    opts.width = sdi_width;
+    opts.height = sdi_height;
+    opts.pixel_format = sdi_pixel;
+    opts.start_frame = sdi_start;
+    opts.end_frame = sdi_end;
+    opts.loop = sdi_loop;
+    auto result = imfwizard::sdi_preview(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "SDI playback complete.\n";
     return 0;
   }
 
