@@ -2,7 +2,8 @@
 
 #include <string>
 
-namespace imfwizard {
+namespace imfwizard
+{
 
 // Generate a new random UUID (urn:uuid:...)
 std::string generate_uuid();

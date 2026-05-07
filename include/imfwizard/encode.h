@@ -5,61 +5,66 @@
 #include <vector>
 #include <cstdint>
 
-namespace imfwizard {
+namespace imfwizard
+{
 
-enum class ImageFormat {
-    DPX,
-    TIFF,
-    EXR,
-    PNG,
-    JPEG,
-    BMP,
-    J2K,     // Already encoded — pass through
-    Unknown
+enum class ImageFormat
+{
+  DPX,
+  TIFF,
+  EXR,
+  PNG,
+  JPEG,
+  BMP,
+  J2K, // Already encoded — pass through
+  Unknown
 };
 
-enum class ColorSpace {
-    BT709,
-    BT2020,
-    P3D65,
-    ACES,
-    Unknown
+enum class ColorSpace
+{
+  BT709,
+  BT2020,
+  P3D65,
+  ACES,
+  Unknown
 };
 
-struct EncodeOptions {
-    std::filesystem::path input_dir;     // Image sequence directory
-    std::filesystem::path output_dir;    // Output J2K codestream directory
-    ImageFormat format = ImageFormat::Unknown; // Auto-detect if Unknown
+struct EncodeOptions
+{
+  std::filesystem::path input_dir; // Image sequence directory
+  std::filesystem::path output_dir; // Output J2K codestream directory
+  ImageFormat format = ImageFormat::Unknown; // Auto-detect if Unknown
 
-    // Resolution / framing
-    uint32_t width = 0;      // 0 = source resolution
-    uint32_t height = 0;     // 0 = source resolution
-    bool crop = false;       // Crop to target aspect
-    bool letterbox = false;  // Letterbox to target resolution
-    bool scale = false;      // Scale to target resolution
+  // Resolution / framing
+  uint32_t width = 0; // 0 = source resolution
+  uint32_t height = 0; // 0 = source resolution
+  bool crop = false; // Crop to target aspect
+  bool letterbox = false; // Letterbox to target resolution
+  bool scale = false; // Scale to target resolution
 
-    // J2K encoding parameters
-    float target_bitrate_mbps = 250.0f; // Target bitrate in Mbps
-    uint32_t num_resolutions = 6;
-    uint32_t code_block_width = 32;
-    uint32_t code_block_height = 32;
-    bool cinema_profile = true;         // Cinema 2K/4K profile
+  // J2K encoding parameters
+  float target_bitrate_mbps = 250.0f; // Target bitrate in Mbps
+  uint32_t num_resolutions = 6;
+  uint32_t code_block_width = 32;
+  uint32_t code_block_height = 32;
+  bool cinema_profile = true; // Cinema 2K/4K profile
 
-    // Color
-    ColorSpace color_space = ColorSpace::BT709;
-    uint16_t bit_depth = 12;
+  // Color
+  ColorSpace color_space = ColorSpace::BT709;
+  uint16_t bit_depth = 12;
 
-    // Performance
-    uint32_t num_threads = 0; // 0 = auto
+  // Performance
+  uint32_t num_threads = 0; // 0 = auto
 };
 
-struct EncodeResult {
-    std::filesystem::path output_dir;
-    uint32_t frame_count = 0;
-    uint32_t width = 0;
-    uint32_t height = 0;
-    bool success = false;
-    std::string error;
+struct EncodeResult
+{
+  std::filesystem::path output_dir;
+  uint32_t frame_count = 0;
+  uint32_t width = 0;
+  uint32_t height = 0;
+  bool success = false;
+  std::string error;
 };
 
 // Detect image format from file extension

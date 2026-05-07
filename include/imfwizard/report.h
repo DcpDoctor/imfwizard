@@ -5,14 +5,16 @@
 #include <string>
 #include <vector>
 
-namespace imfwizard {
+namespace imfwizard
+{
 
 // Generate a QC report in HTML format
-struct QcReportOptions {
-    std::filesystem::path imp_dir;
-    ValidationResult validation;
-    std::string title;
-    std::string author = "IMF Wizard";
+struct QcReportOptions
+{
+  std::filesystem::path imp_dir;
+  ValidationResult validation;
+  std::string title;
+  std::string author = "IMF Wizard";
 };
 
 // Generate HTML QC report
