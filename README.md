@@ -15,14 +15,30 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **Image encoding pipeline** — DPX, TIFF, EXR, PNG, BMP, JPEG → JPEG 2000 (via grok or OpenJPEG)
 - **ProRes / DNxHR / H.264 / H.265 transcoding** — video files → image sequence → J2K (via ffmpeg)
 - **TTML / IMSC subtitle** packaging as AS-02 timed text MXF
+- **Closed captions** — SCC (CEA-608) and SRT → TTML conversion
 - **Dolby Vision 4.0** RPU metadata injection (via dovi_tool)
+- **HDR10+ dynamic metadata** injection (via hdr10plus_tool)
+- **HDR/WCG color metadata** — ST 2067-21 (PQ, HLG, BT.2020, P3-D65)
+- **IAB / Dolby Atmos** immersive audio packaging
+- **Multi-language audio** with RFC 5646 language tags and MCA labels
+- **Audio channel remapping** — downmix 5.1/7.1 to stereo or remap layouts
+- **Loudness analysis** — EBU R128 / ATSC A/85 measurement and normalization
+- **Accessibility tracks** — Audio Description, Hearing Impaired, Sign Language, Commentary
+- **Delivery profiles** — Netflix, Disney+, Amazon, Apple TV+, Cinema 2K/4K, Broadcast, Archival presets
 - **Photon validation** — validate output IMPs using Netflix Photon
+- **Frame-level QC** — per-frame bitrate analysis with over/under-budget detection
+- **VMAF / PSNR / SSIM** quality metrics (via ffmpeg libvmaf)
+- **QC HTML report** generation with dark-themed styling
+- **Watch folder** — daemon mode for auto-IMP creation
+- **Partial restore** — extract tracks from existing IMPs back to raw files
+- **EDL/AAF conform** — import CMX3600 edit decisions to auto-build CPL timelines
+- **S3 cloud upload** — push completed IMPs to AWS S3
 - **Scale / crop / letterbox** options for resolution adaptation
 - AS-02 MXF track file wrapping (SMPTE 2067-5)
 - CPL (ST 2067-3), PKL (ST 429-8), AssetMap (ST 429-9) generation
 - SHA-1 hash computation for all assets
 - Optional XML-DSIG signing
-- Desktop GUI (Tauri 2)
+- Desktop GUI (Tauri 2) with timeline editor
 
 ## Building
 
@@ -37,9 +53,11 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 ### Optional runtime dependencies
 
 - **grok** or **OpenJPEG** — for image→J2K encoding (`grk_compress` / `opj_compress`)
-- **ffmpeg** / **ffprobe** — for ProRes/DNxHR/H.264/H.265 transcoding
+- **ffmpeg** / **ffprobe** — for transcoding, loudness, channel remapping, quality metrics
 - **dovi_tool** — for Dolby Vision RPU injection
+- **hdr10plus_tool** — for HDR10+ dynamic metadata injection
 - **Java** + **Netflix Photon** — for IMF validation
+- **AWS CLI** — for S3 upload
 
 ### Build
 

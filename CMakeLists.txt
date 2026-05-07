@@ -55,6 +55,14 @@ add_library(imfwizard_core STATIC
     src/extract.cpp
     src/report.cpp
     src/conform.cpp
+    src/profiles.cpp
+    src/loudness.cpp
+    src/captions.cpp
+    src/channel_map.cpp
+    src/cloud.cpp
+    src/qc.cpp
+    src/hdr10plus.cpp
+    src/accessibility.cpp
     src/uuid.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
