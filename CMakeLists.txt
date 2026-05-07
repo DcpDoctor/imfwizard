@@ -108,4 +108,21 @@ if(BUILD_TESTING)
     add_executable(imfwizard_integration_test tests/test_integration.cpp)
     target_link_libraries(imfwizard_integration_test PRIVATE imfwizard_core)
     add_test(NAME imfwizard_integration_test COMMAND imfwizard_integration_test)
+
+    add_executable(imfwizard_job_queue_test tests/test_job_queue.cpp)
+    target_link_libraries(imfwizard_job_queue_test PRIVATE imfwizard_core)
+    add_test(NAME imfwizard_job_queue_test COMMAND imfwizard_job_queue_test)
+
+    # CLI integration tests (bash)
+    add_test(NAME imfwizard_cli_test
+        COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_cli.sh
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+    # GUI launch/exit tests (bash, optional)
+    add_test(NAME imfwizard_gui_test
+        COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_gui.sh)
+
+    # job_queue_test and cli_test both use /tmp/imfwizard.sock — serialize them
+    set_tests_properties(imfwizard_job_queue_test imfwizard_cli_test
+        PROPERTIES RESOURCE_LOCK "imfwizard_socket")
 endif()
