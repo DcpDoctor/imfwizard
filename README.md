@@ -106,6 +106,47 @@ cd build
 ctest
 ```
 
+### Python Bindings (SWIG)
+
+Requires SWIG 4.0+ and Python 3.8+ development headers.
+
+```bash
+# Install SWIG (Ubuntu/Debian)
+sudo apt install swig python3-dev
+
+# Install SWIG (Fedora)
+sudo dnf install swig python3-devel
+
+# Install SWIG (macOS)
+brew install swig python@3
+
+# Build with bindings enabled
+cmake -B build -DBUILD_PYTHON_BINDINGS=ON
+cmake --build build
+
+# Use from build directory
+cd build/bindings/python
+python3 -c "import imfwizard; print(imfwizard.generate_uuid())"
+```
+
+Example usage:
+
+```python
+import imfwizard
+
+opts = imfwizard.ImpOptions()
+opts.title = "My Feature Film"
+opts.video_dir = "/path/to/j2k_frames"
+opts.audio_file = "/path/to/audio.wav"
+opts.output_dir = "/path/to/output"
+
+result = imfwizard.create_ov_imp(opts)
+if result.success:
+    print(f"Created IMP: {result.cpl_uuid}")
+```
+
+See `bindings/python/examples/` for more examples.
+
 ### GUI (Tauri 2)
 
 ```bash
