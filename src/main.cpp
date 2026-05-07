@@ -44,6 +44,18 @@
 #include "imfwizard/pdf_report.h"
 #include "imfwizard/subtitle_convert.h"
 #include "imfwizard/timecode.h"
+#include "dcpdoctor/validate.h"
+#include "dcpdoctor/schema_validate.h"
+#include "dcpdoctor/imf_compliance.h"
+#include "dcpdoctor/qc.h"
+#include "dcpdoctor/qc_report.h"
+#include "dcpdoctor/loudness.h"
+#include "dcpdoctor/av_sync.h"
+#include "dcpdoctor/hdr_validate.h"
+#include "dcpdoctor/frame_compare.h"
+#include "dcpdoctor/checksum_verify.h"
+#include "dcpdoctor/mxf_extract.h"
+#include "dcpdoctor/auto_qc.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <cinttypes>
@@ -645,31 +657,130 @@ int main(int argc, char* argv[])
   tcdrift_cmd->add_option("--expected,-e", tcdrift_expected, "Expected start timecode");
   tcdrift_cmd->add_option("--fps", tcdrift_fps, "Expected frame rate")->default_val(24.0);
 
-  // === dcpdoctor wrapper subcommands (delegate to dcpdoctor CLI) ===
-  auto* validate_cmd = app.add_subcommand("validate", "Validate IMP (delegates to dcpdoctor)");
-  validate_cmd->allow_extras();
-  auto* schema_val_cmd = app.add_subcommand("schema-validate", "XML schema validation (delegates to dcpdoctor)");
-  schema_val_cmd->allow_extras();
-  auto* compliance_cmd = app.add_subcommand("compliance", "Platform compliance checks (delegates to dcpdoctor)");
-  compliance_cmd->allow_extras();
-  auto* frame_qc_cmd = app.add_subcommand("frame-qc", "Frame-level QC analysis (delegates to dcpdoctor)");
-  frame_qc_cmd->allow_extras();
-  auto* qc_report_cmd = app.add_subcommand("qc-report", "Generate QC report (delegates to dcpdoctor)");
-  qc_report_cmd->allow_extras();
-  auto* loudness_cmd = app.add_subcommand("loudness", "Loudness measurement (delegates to dcpdoctor)");
-  loudness_cmd->allow_extras();
-  auto* avsync_cmd = app.add_subcommand("av-sync", "AV sync detection (delegates to dcpdoctor)");
-  avsync_cmd->allow_extras();
-  auto* hdrval_cmd = app.add_subcommand("hdr-validate", "HDR validation (delegates to dcpdoctor)");
-  hdrval_cmd->allow_extras();
-  auto* fcomp_cmd = app.add_subcommand("frame-compare", "Frame comparison (delegates to dcpdoctor)");
-  fcomp_cmd->allow_extras();
-  auto* cksum_cmd = app.add_subcommand("checksum-verify", "Checksum verification (delegates to dcpdoctor)");
-  cksum_cmd->allow_extras();
-  auto* mxfext_cmd = app.add_subcommand("mxf-extract", "MXF extraction (delegates to dcpdoctor)");
-  mxfext_cmd->allow_extras();
-  auto* autoqc_cmd = app.add_subcommand("auto-qc", "Automated QC checks (delegates to dcpdoctor)");
-  autoqc_cmd->allow_extras();
+  // === dcpdoctor-powered subcommands (linked directly) ===
+  auto* validate_cmd = app.add_subcommand("validate", "Validate IMP using Photon");
+  std::string val_imp_dir;
+  validate_cmd->add_option("imp_dir", val_imp_dir, "IMP directory")
+      ->required()->check(CLI::ExistingDirectory);
+
+  auto* schema_val_cmd = app.add_subcommand("schema-validate", "XML schema validation");
+  std::string sv_imp_dir, sv_schema_dir;
+  bool sv_strict = false;
+  schema_val_cmd->add_option("imp_dir", sv_imp_dir, "IMP directory")
+      ->required()->check(CLI::ExistingDirectory);
+  schema_val_cmd->add_option("--schema-dir", sv_schema_dir, "Custom schema directory");
+  schema_val_cmd->add_flag("--strict", sv_strict, "Strict validation mode");
+
+  auto* compliance_cmd = app.add_subcommand("compliance", "Platform compliance checks");
+  std::string comp_imp_dir, comp_target = "Netflix";
+  bool comp_strict = true;
+  compliance_cmd->add_option("imp_dir", comp_imp_dir, "IMP directory")
+      ->required()->check(CLI::ExistingDirectory);
+  compliance_cmd->add_option("-t,--target", comp_target,
+      "Target platform (Netflix, Disney, Amazon, Apple, Cinema2K, Cinema4K, BroadcastHD, BroadcastUHD)")
+      ->default_val("Netflix");
+  compliance_cmd->add_flag("--no-strict", [&](auto) { comp_strict = false; }, "Disable strict mode");
+
+  auto* frame_qc_cmd = app.add_subcommand("frame-qc", "Frame-level QC analysis");
+  std::string fqc_j2k_dir;
+  double fqc_target = 250.0, fqc_max = 300.0, fqc_min = 50.0;
+  uint32_t fqc_fps_num = 24, fqc_fps_den = 1;
+  frame_qc_cmd->add_option("j2k_dir", fqc_j2k_dir, "J2K codestream directory")
+      ->required()->check(CLI::ExistingDirectory);
+  frame_qc_cmd->add_option("--target-bitrate", fqc_target, "Target bitrate (Mbps)")->default_val(250.0);
+  frame_qc_cmd->add_option("--max-bitrate", fqc_max, "Max bitrate (Mbps)")->default_val(300.0);
+  frame_qc_cmd->add_option("--min-bitrate", fqc_min, "Min bitrate (Mbps)")->default_val(50.0);
+  frame_qc_cmd->add_option("--fps-num", fqc_fps_num, "FPS numerator")->default_val(24);
+  frame_qc_cmd->add_option("--fps-den", fqc_fps_den, "FPS denominator")->default_val(1);
+
+  auto* qc_report_cmd = app.add_subcommand("qc-report", "Generate detailed QC report");
+  std::string qcr_imp_dir, qcr_output, qcr_title, qcr_client;
+  uint32_t qcr_thumbs = 12;
+  bool qcr_no_thumbs = false, qcr_no_waveform = false, qcr_no_loudness = false;
+  qc_report_cmd->add_option("imp_dir", qcr_imp_dir, "IMP directory")
+      ->required()->check(CLI::ExistingDirectory);
+  qc_report_cmd->add_option("-o,--output", qcr_output, "Output file (.html or .pdf)")->required();
+  qc_report_cmd->add_option("--title", qcr_title, "Report title");
+  qc_report_cmd->add_option("--client", qcr_client, "Client name");
+  qc_report_cmd->add_option("--thumbnails", qcr_thumbs, "Number of thumbnails")->default_val(12);
+  qc_report_cmd->add_flag("--no-thumbnails", qcr_no_thumbs, "Disable thumbnails");
+  qc_report_cmd->add_flag("--no-waveform", qcr_no_waveform, "Disable waveform");
+  qc_report_cmd->add_flag("--no-loudness", qcr_no_loudness, "Disable loudness");
+
+  auto* loudness_cmd = app.add_subcommand("loudness", "Loudness measurement");
+  std::string loud_audio;
+  loudness_cmd->add_option("audio_file", loud_audio, "Audio file")
+      ->required()->check(CLI::ExistingFile);
+
+  auto* avsync_cmd = app.add_subcommand("av-sync", "AV sync detection");
+  std::string avs_video, avs_audio;
+  uint32_t avs_fps_num = 24, avs_fps_den = 1, avs_sample_rate = 48000;
+  avsync_cmd->add_option("-v,--video", avs_video, "Video file")->required()->check(CLI::ExistingFile);
+  avsync_cmd->add_option("-a,--audio", avs_audio, "Audio file")->required()->check(CLI::ExistingFile);
+  avsync_cmd->add_option("--fps-num", avs_fps_num, "FPS numerator")->default_val(24);
+  avsync_cmd->add_option("--fps-den", avs_fps_den, "FPS denominator")->default_val(1);
+  avsync_cmd->add_option("--sample-rate", avs_sample_rate, "Audio sample rate")->default_val(48000);
+
+  auto* hdrval_cmd = app.add_subcommand("hdr-validate", "HDR metadata validation");
+  std::string hdr_video, hdr_cpl, hdr_spec = "hdr10";
+  uint16_t hdr_bit_depth = 10;
+  hdrval_cmd->add_option("video", hdr_video, "Video file")->required()->check(CLI::ExistingFile);
+  hdrval_cmd->add_option("--cpl", hdr_cpl, "CPL file");
+  hdrval_cmd->add_option("-s,--spec", hdr_spec, "Target spec (hdr10, hlg, dolby_vision, hdr10plus)")
+      ->default_val("hdr10");
+  hdrval_cmd->add_option("--bit-depth", hdr_bit_depth, "Expected bit depth")->default_val(10);
+
+  auto* fcomp_cmd = app.add_subcommand("frame-compare", "Frame comparison between IMPs");
+  std::string fc_imp_a, fc_imp_b, fc_output_dir;
+  double fc_thresh_psnr = 40.0, fc_thresh_ssim = 0.95;
+  uint32_t fc_sample = 1, fc_start = 0, fc_end = 0;
+  bool fc_html = false, fc_extract = false;
+  fcomp_cmd->add_option("imp_a", fc_imp_a, "First IMP")->required()->check(CLI::ExistingDirectory);
+  fcomp_cmd->add_option("imp_b", fc_imp_b, "Second IMP")->required()->check(CLI::ExistingDirectory);
+  fcomp_cmd->add_option("-o,--output", fc_output_dir, "Output directory");
+  fcomp_cmd->add_option("--threshold-psnr", fc_thresh_psnr, "PSNR threshold (dB)")->default_val(40.0);
+  fcomp_cmd->add_option("--threshold-ssim", fc_thresh_ssim, "SSIM threshold")->default_val(0.95);
+  fcomp_cmd->add_option("--sample-interval", fc_sample, "Sample every N frames")->default_val(1);
+  fcomp_cmd->add_option("--start-frame", fc_start, "Start frame");
+  fcomp_cmd->add_option("--end-frame", fc_end, "End frame (0=all)");
+  fcomp_cmd->add_flag("--html", fc_html, "Generate HTML report");
+  fcomp_cmd->add_flag("--extract-diffs", fc_extract, "Extract differing frames");
+
+  auto* cksum_cmd = app.add_subcommand("checksum-verify", "Verify package checksums");
+  std::string cksum_dir;
+  bool cksum_no_sizes = false, cksum_stop_first = false;
+  cksum_cmd->add_option("package_dir", cksum_dir, "DCP or IMP directory")
+      ->required()->check(CLI::ExistingDirectory);
+  cksum_cmd->add_flag("--no-sizes", cksum_no_sizes, "Skip size verification");
+  cksum_cmd->add_flag("--stop-on-error", cksum_stop_first, "Stop on first error");
+
+  auto* mxfext_cmd = app.add_subcommand("mxf-extract", "Extract frames from MXF");
+  std::string mxfe_input, mxfe_output_dir;
+  bool mxfe_no_video = false, mxfe_no_audio = false;
+  uint32_t mxfe_start = 0, mxfe_end = 0;
+  mxfext_cmd->add_option("input", mxfe_input, "MXF input file")
+      ->required()->check(CLI::ExistingFile);
+  mxfext_cmd->add_option("-o,--output", mxfe_output_dir, "Output directory")->required();
+  mxfext_cmd->add_option("--start-frame", mxfe_start, "Start frame");
+  mxfext_cmd->add_option("--end-frame", mxfe_end, "End frame (0=all)");
+  mxfext_cmd->add_flag("--no-video", mxfe_no_video, "Skip video extraction");
+  mxfext_cmd->add_flag("--no-audio", mxfe_no_audio, "Skip audio extraction");
+
+  auto* autoqc_cmd = app.add_subcommand("auto-qc", "Automated QC checks");
+  std::string aqc_video, aqc_audio;
+  double aqc_black_thresh = 0.98, aqc_black_dur = 0.5;
+  double aqc_freeze_thresh = 0.003, aqc_freeze_dur = 2.0;
+  double aqc_silence_thresh = -60.0, aqc_silence_dur = 1.0;
+  double aqc_clip_thresh = -0.5;
+  autoqc_cmd->add_option("-v,--video", aqc_video, "Video file")->required()->check(CLI::ExistingFile);
+  autoqc_cmd->add_option("-a,--audio", aqc_audio, "Audio file");
+  autoqc_cmd->add_option("--black-threshold", aqc_black_thresh, "Black frame threshold")->default_val(0.98);
+  autoqc_cmd->add_option("--black-duration", aqc_black_dur, "Min black duration (sec)")->default_val(0.5);
+  autoqc_cmd->add_option("--freeze-threshold", aqc_freeze_thresh, "Freeze frame threshold")->default_val(0.003);
+  autoqc_cmd->add_option("--freeze-duration", aqc_freeze_dur, "Min freeze duration (sec)")->default_val(2.0);
+  autoqc_cmd->add_option("--silence-threshold", aqc_silence_thresh, "Silence threshold (dB)")->default_val(-60.0);
+  autoqc_cmd->add_option("--silence-duration", aqc_silence_dur, "Min silence duration (sec)")->default_val(1.0);
+  autoqc_cmd->add_option("--clipping-threshold", aqc_clip_thresh, "Clipping threshold (dBFS)")->default_val(-0.5);
 
   CLI11_PARSE(app, argc, argv);
 
@@ -682,47 +793,231 @@ int main(int argc, char* argv[])
     spdlog::set_level(spdlog::level::info);
   }
 
-  // === dcpdoctor wrapper handlers — delegate to dcpdoctor CLI ===
-  auto delegate_to_dcpdoctor = [](const std::string& subcmd, CLI::App* cmd) -> int {
-    std::string args;
-    for(auto& extra : cmd->remaining())
-    {
-      args += " ";
-      // Quote args that contain spaces
-      if(extra.find(' ') != std::string::npos)
-        args += "\"" + extra + "\"";
-      else
-        args += extra;
-    }
-    std::string full_cmd = "dcpdoctor " + subcmd + args;
-    spdlog::debug("Delegating to: {}", full_cmd);
-    return system(full_cmd.c_str()) == 0 ? 0 : 1;
-  };
-
+  // === dcpdoctor-powered handlers (linked directly) ===
   if(validate_cmd->parsed())
-    return delegate_to_dcpdoctor("validate-imp", validate_cmd);
+  {
+    auto result = dcpdoctor::validate_with_photon(val_imp_dir);
+    for(const auto& note : result.notes)
+    {
+      const char* sev = note.severity == dcpdoctor::ValidationNote::Severity::error ? "ERROR"
+                      : note.severity == dcpdoctor::ValidationNote::Severity::warning ? "WARN" : "INFO";
+      std::cout << "[" << sev << "] " << note.message;
+      if(!note.context.empty()) std::cout << " (" << note.context << ")";
+      std::cout << "\n";
+    }
+    std::cout << (result.valid ? "VALID" : "INVALID") << "\n";
+    return result.valid ? 0 : 1;
+  }
+
   if(schema_val_cmd->parsed())
-    return delegate_to_dcpdoctor("schema-validate", schema_val_cmd);
+  {
+    dcpdoctor::SchemaValidateOptions opts;
+    opts.imp_dir = sv_imp_dir;
+    if(!sv_schema_dir.empty()) opts.schema_dir = sv_schema_dir;
+    opts.strict = sv_strict;
+    auto result = dcpdoctor::validate_against_schema(opts);
+    for(const auto& e : result.errors)
+    {
+      std::cout << (e.is_warning ? "WARN" : "ERROR") << ": " << e.file
+                << ":" << e.line << ":" << e.column << ": " << e.message << "\n";
+    }
+    std::cout << (result.valid ? "VALID" : "INVALID") << " (" << result.schema_version << ")\n";
+    return result.valid ? 0 : 1;
+  }
+
   if(compliance_cmd->parsed())
-    return delegate_to_dcpdoctor("imf-compliance", compliance_cmd);
+  {
+    dcpdoctor::ImfComplianceOptions opts;
+    opts.imp_dir = comp_imp_dir;
+    opts.strict = comp_strict;
+    // Map target string to enum
+    if(comp_target == "Netflix") opts.target = dcpdoctor::ImfComplianceTarget::Netflix;
+    else if(comp_target == "Disney") opts.target = dcpdoctor::ImfComplianceTarget::Disney;
+    else if(comp_target == "Amazon") opts.target = dcpdoctor::ImfComplianceTarget::Amazon;
+    else if(comp_target == "Apple") opts.target = dcpdoctor::ImfComplianceTarget::Apple;
+    else if(comp_target == "Cinema2K") opts.target = dcpdoctor::ImfComplianceTarget::Cinema2K;
+    else if(comp_target == "Cinema4K") opts.target = dcpdoctor::ImfComplianceTarget::Cinema4K;
+    else if(comp_target == "BroadcastHD") opts.target = dcpdoctor::ImfComplianceTarget::BroadcastHD;
+    else if(comp_target == "BroadcastUHD") opts.target = dcpdoctor::ImfComplianceTarget::BroadcastUHD;
+    else { std::cerr << "Unknown target: " << comp_target << "\n"; return 1; }
+    auto result = dcpdoctor::check_imf_compliance(opts);
+    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    for(const auto& c : result.checks)
+    {
+      std::cout << (c.passed ? "PASS" : "FAIL") << ": " << c.rule << " — " << c.description;
+      if(!c.passed) std::cout << " (expected " << c.expected_value << ", got " << c.actual_value << ")";
+      std::cout << "\n";
+    }
+    std::cout << dcpdoctor::imf_compliance_target_name(result.target) << ": "
+              << result.passed << "/" << (result.passed + result.failed) << " passed"
+              << (result.compliant ? " — COMPLIANT" : " — NOT COMPLIANT") << "\n";
+    return result.compliant ? 0 : 1;
+  }
+
   if(frame_qc_cmd->parsed())
-    return delegate_to_dcpdoctor("frame-qc", frame_qc_cmd);
+  {
+    dcpdoctor::FrameQcOptions opts;
+    opts.j2k_dir = fqc_j2k_dir;
+    opts.target_bitrate_mbps = fqc_target;
+    opts.max_bitrate_mbps = fqc_max;
+    opts.min_bitrate_mbps = fqc_min;
+    opts.fps_num = fqc_fps_num;
+    opts.fps_den = fqc_fps_den;
+    auto result = dcpdoctor::analyze_frame_qc(opts);
+    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    std::cout << "Frames: " << result.total_frames
+              << "  Avg: " << result.average_bitrate_mbps << " Mbps"
+              << "  Peak: " << result.peak_bitrate_mbps << " Mbps"
+              << "  Min: " << result.min_bitrate_mbps << " Mbps\n";
+    if(result.over_budget_count > 0)
+      std::cout << "Over budget: " << result.over_budget_count << " frames\n";
+    if(result.under_budget_count > 0)
+      std::cout << "Under budget: " << result.under_budget_count << " frames\n";
+    return 0;
+  }
+
   if(qc_report_cmd->parsed())
-    return delegate_to_dcpdoctor("qc-report", qc_report_cmd);
+  {
+    dcpdoctor::DetailedQcOptions opts;
+    opts.imp_dir = qcr_imp_dir;
+    opts.output_file = qcr_output;
+    opts.title = qcr_title;
+    opts.client = qcr_client;
+    opts.thumbnail_count = qcr_thumbs;
+    opts.include_thumbnails = !qcr_no_thumbs;
+    opts.include_waveform = !qcr_no_waveform;
+    opts.include_loudness = !qcr_no_loudness;
+    auto result = dcpdoctor::generate_detailed_qc(opts);
+    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    std::cout << "QC report: " << result.output_file.string() << " (" << result.pages << " pages)\n";
+    return 0;
+  }
+
   if(loudness_cmd->parsed())
-    return delegate_to_dcpdoctor("loudness", loudness_cmd);
+  {
+    auto result = dcpdoctor::measure_imf_loudness(loud_audio);
+    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    std::cout << "Integrated: " << result.integrated_lufs << " LUFS\n"
+              << "LRA:        " << result.loudness_range_lu << " LU\n"
+              << "True Peak:  " << result.true_peak_dbtp << " dBTP\n"
+              << "R128:       " << (result.compliant_r128 ? "PASS" : "FAIL") << "\n"
+              << "ATSC:       " << (result.compliant_atsc ? "PASS" : "FAIL") << "\n";
+    return 0;
+  }
+
   if(avsync_cmd->parsed())
-    return delegate_to_dcpdoctor("av-sync", avsync_cmd);
+  {
+    dcpdoctor::AvSyncOptions opts;
+    opts.video_file = avs_video;
+    opts.audio_file = avs_audio;
+    opts.fps_num = avs_fps_num;
+    opts.fps_den = avs_fps_den;
+    opts.sample_rate = avs_sample_rate;
+    auto result = dcpdoctor::detect_av_sync(opts);
+    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    std::cout << "Drift: " << result.drift_ms << " ms (" << result.drift_frames << " frames)\n"
+              << "Status: " << (result.in_sync ? "IN SYNC" : "OUT OF SYNC") << "\n";
+    if(!result.recommendation.empty()) std::cout << "Recommendation: " << result.recommendation << "\n";
+    return 0;
+  }
+
   if(hdrval_cmd->parsed())
-    return delegate_to_dcpdoctor("hdr-validate", hdrval_cmd);
+  {
+    dcpdoctor::HdrValidateOptions opts;
+    opts.video_path = hdr_video;
+    if(!hdr_cpl.empty()) opts.cpl_path = hdr_cpl;
+    opts.target_spec = hdr_spec;
+    opts.expected_bit_depth = hdr_bit_depth;
+    auto result = dcpdoctor::validate_hdr_metadata(opts);
+    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    for(const auto& issue : result.issues)
+    {
+      std::cout << "[" << issue.severity << "] " << issue.field << ": " << issue.description;
+      if(!issue.expected.empty()) std::cout << " (expected " << issue.expected << ", got " << issue.actual << ")";
+      std::cout << "\n";
+    }
+    std::cout << (result.valid ? "VALID" : "INVALID") << "\n";
+    return result.valid ? 0 : 1;
+  }
+
   if(fcomp_cmd->parsed())
-    return delegate_to_dcpdoctor("frame-compare", fcomp_cmd);
+  {
+    dcpdoctor::CompareOptions opts;
+    opts.imp_a = fc_imp_a;
+    opts.imp_b = fc_imp_b;
+    if(!fc_output_dir.empty()) opts.output_dir = fc_output_dir;
+    opts.threshold_psnr = fc_thresh_psnr;
+    opts.threshold_ssim = fc_thresh_ssim;
+    opts.sample_interval = fc_sample;
+    opts.start_frame = fc_start;
+    opts.end_frame = fc_end;
+    opts.generate_html = fc_html;
+    opts.extract_diff_frames = fc_extract;
+    auto result = dcpdoctor::compare_imps(opts);
+    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    std::cout << "Compared: " << result.frames_compared << " frames\n"
+              << "Different: " << result.frames_different << " frames\n"
+              << "Avg PSNR: " << result.avg_psnr << " dB  Min: " << result.min_psnr << " dB\n"
+              << "Avg SSIM: " << result.avg_ssim << "  Min: " << result.min_ssim << "\n"
+              << (result.identical ? "IDENTICAL" : "DIFFERENT") << "\n";
+    return result.identical ? 0 : 1;
+  }
+
   if(cksum_cmd->parsed())
-    return delegate_to_dcpdoctor("checksum-verify", cksum_cmd);
+  {
+    dcpdoctor::ChecksumVerifyOptions opts;
+    opts.package_dir = cksum_dir;
+    opts.verify_sizes = !cksum_no_sizes;
+    opts.stop_on_first_error = cksum_stop_first;
+    auto result = dcpdoctor::verify_package_checksums(opts);
+    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    std::cout << "Assets: " << result.total_assets
+              << "  OK: " << result.verified_ok
+              << "  Hash mismatches: " << result.hash_mismatches
+              << "  Missing: " << result.missing_files << "\n"
+              << (result.all_valid ? "ALL VALID" : "ERRORS FOUND") << "\n";
+    return result.all_valid ? 0 : 1;
+  }
+
   if(mxfext_cmd->parsed())
-    return delegate_to_dcpdoctor("mxf-extract", mxfext_cmd);
+  {
+    dcpdoctor::MxfExtractOptions opts;
+    opts.input = mxfe_input;
+    opts.output_dir = mxfe_output_dir;
+    opts.extract_video = !mxfe_no_video;
+    opts.extract_audio = !mxfe_no_audio;
+    opts.start_frame = mxfe_start;
+    opts.end_frame = mxfe_end;
+    auto result = dcpdoctor::extract_mxf(opts);
+    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    std::cout << "Extracted " << result.frames_extracted << " frames to "
+              << opts.output_dir.string() << "\n";
+    return 0;
+  }
+
   if(autoqc_cmd->parsed())
-    return delegate_to_dcpdoctor("auto-qc", autoqc_cmd);
+  {
+    dcpdoctor::AutoQcOptions opts;
+    opts.video_path = aqc_video;
+    if(!aqc_audio.empty()) opts.audio_path = aqc_audio;
+    opts.black_threshold = aqc_black_thresh;
+    opts.black_duration_min = aqc_black_dur;
+    opts.freeze_threshold = aqc_freeze_thresh;
+    opts.freeze_duration_min = aqc_freeze_dur;
+    opts.silence_threshold = aqc_silence_thresh;
+    opts.silence_duration_min = aqc_silence_dur;
+    opts.clipping_threshold = aqc_clip_thresh;
+    auto result = dcpdoctor::run_auto_qc(opts);
+    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    std::cout << "Duration: " << result.duration_seconds << "s  Frames: " << result.total_frames << "\n";
+    for(const auto& issue : result.issues)
+    {
+      std::cout << "[" << issue.severity << "] " << issue.description
+                << " @ " << issue.start_timecode_sec << "s–" << issue.end_timecode_sec << "s\n";
+    }
+    if(result.issues.empty()) std::cout << "No issues found.\n";
+    return 0;
+  }
 
   if(create_cmd->parsed())
   {
@@ -939,16 +1234,20 @@ int main(int argc, char* argv[])
 
   if(report_cmd->parsed())
   {
-    // Validation has moved to dcpdoctor; generate report shell
+    // Validate via dcpdoctor library (linked directly)
+    auto dcd_result = dcpdoctor::validate_with_photon(rpt_imp_dir);
     imfwizard::ValidationResult validation;
-    int ret = system(("dcpdoctor validate-imp \"" + rpt_imp_dir + "\" > /dev/null 2>&1").c_str());
-    validation.valid = (ret == 0);
-    if(!validation.valid)
+    validation.valid = dcd_result.valid;
+    for(const auto& note : dcd_result.notes)
     {
-      imfwizard::ValidationNote note;
-      note.severity = imfwizard::ValidationNote::Severity::warning;
-      note.message = "dcpdoctor validation returned non-zero (run dcpdoctor validate-imp for details)";
-      validation.notes.push_back(note);
+      imfwizard::ValidationNote vn;
+      vn.severity = note.severity == dcpdoctor::ValidationNote::Severity::error
+                        ? imfwizard::ValidationNote::Severity::error
+                    : note.severity == dcpdoctor::ValidationNote::Severity::warning
+                        ? imfwizard::ValidationNote::Severity::warning
+                        : imfwizard::ValidationNote::Severity::info;
+      vn.message = note.message;
+      validation.notes.push_back(std::move(vn));
     }
     imfwizard::QcReportOptions opts;
     opts.imp_dir = rpt_imp_dir;
@@ -1905,16 +2204,20 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    // Run validation via dcpdoctor
+    // Run validation via dcpdoctor library (linked directly)
+    auto dcd_result = dcpdoctor::validate_with_photon(pdfreport_imp);
     imfwizard::ValidationResult validation;
-    int vret = system(("dcpdoctor validate-imp \"" + pdfreport_imp + "\" > /dev/null 2>&1").c_str());
-    validation.valid = (vret == 0);
-    if(!validation.valid)
+    validation.valid = dcd_result.valid;
+    for(const auto& note : dcd_result.notes)
     {
-      imfwizard::ValidationNote note;
-      note.severity = imfwizard::ValidationNote::Severity::warning;
-      note.message = "dcpdoctor validation returned non-zero (run dcpdoctor validate-imp for details)";
-      validation.notes.push_back(note);
+      imfwizard::ValidationNote vn;
+      vn.severity = note.severity == dcpdoctor::ValidationNote::Severity::error
+                        ? imfwizard::ValidationNote::Severity::error
+                    : note.severity == dcpdoctor::ValidationNote::Severity::warning
+                        ? imfwizard::ValidationNote::Severity::warning
+                        : imfwizard::ValidationNote::Severity::info;
+      vn.message = note.message;
+      validation.notes.push_back(std::move(vn));
     }
 
     imfwizard::PdfReportOptions opts;

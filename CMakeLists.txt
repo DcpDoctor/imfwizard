@@ -37,6 +37,9 @@ add_subdirectory(extern/spdlog EXCLUDE_FROM_ALL)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 add_subdirectory(extern/asdcplib EXCLUDE_FROM_ALL)
 
+# dcpdoctor (validation/QC library)
+add_subdirectory(extern/dcpdoctor EXCLUDE_FROM_ALL)
+
 # Core library
 add_library(imfwizard_core STATIC
     src/mxf_wrap.cpp
@@ -114,6 +117,7 @@ if(WIN32)
         libas02
         libasdcp
         libkumu
+        dcpdoctor_core
         ws2_32)
 else()
     target_link_libraries(imfwizard_core PUBLIC
@@ -123,7 +127,8 @@ else()
         spdlog::spdlog
         libas02
         libasdcp
-        libkumu)
+        libkumu
+        dcpdoctor_core)
 endif()
 
 # CLI tool

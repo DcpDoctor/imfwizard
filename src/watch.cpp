@@ -2,6 +2,10 @@
 #include "imfwizard/imp.h"
 #include "imfwizard/portable.h"
 #include "imfwizard/validate.h"
+#include "dcpdoctor/validate.h"
+#include "dcpdoctor/auto_qc.h"
+#include "dcpdoctor/hdr_validate.h"
+#include "dcpdoctor/checksum_verify.h"
 #include <spdlog/spdlog.h>
 
 #include <chrono>
@@ -142,48 +146,60 @@ static void run_action_pipeline(const WatchConfig& config, const fs::path& conte
     case WatchAction::ChecksumVerify:
     case WatchAction::Validate:
     case WatchAction::HdrValidate:
-      // These features have been moved to dcpdoctor.
-      // Use: dcpdoctor validate-imp, dcpdoctor auto-qc, dcpdoctor hdr-validate, etc.
       {
-        std::string dcpdoctor_cmd;
         if(action == WatchAction::Validate)
-          dcpdoctor_cmd = "dcpdoctor validate-imp \"" + content_dir.string() + "\" 2>&1";
+        {
+          auto result = dcpdoctor::validate_with_photon(content_dir);
+          ok = result.valid;
+          msg = ok ? "Validation passed" : "Validation failed (" + std::to_string(result.notes.size()) + " notes)";
+        }
         else if(action == WatchAction::HdrValidate)
         {
-          // Find first video file
+          bool found = false;
           for(const auto& f : fs::directory_iterator(content_dir))
           {
             auto ext = f.path().extension().string();
             if(ext == ".mxf" || ext == ".mp4" || ext == ".mov")
             {
-              dcpdoctor_cmd = "dcpdoctor hdr-validate \"" + f.path().string() + "\" -s hdr10 2>&1";
+              dcpdoctor::HdrValidateOptions opts;
+              opts.video_path = f.path();
+              opts.target_spec = "hdr10";
+              auto result = dcpdoctor::validate_hdr_metadata(opts);
+              ok = result.valid;
+              msg = ok ? "HDR validation passed" : "HDR validation failed";
+              found = true;
               break;
             }
           }
+          if(!found) msg = "No suitable video file found for HDR validation";
         }
         else if(action == WatchAction::AutoQc)
         {
+          bool found = false;
           for(const auto& f : fs::directory_iterator(content_dir))
           {
             auto ext = f.path().extension().string();
             if(ext == ".mxf" || ext == ".mp4" || ext == ".mov")
             {
-              dcpdoctor_cmd = "dcpdoctor auto-qc -v \"" + f.path().string() + "\" 2>&1";
+              dcpdoctor::AutoQcOptions opts;
+              opts.video_path = f.path();
+              auto result = dcpdoctor::run_auto_qc(opts);
+              ok = result.success && result.issues.empty();
+              msg = ok ? "Auto QC passed" : "Auto QC found " + std::to_string(result.issues.size()) + " issues";
+              found = true;
               break;
             }
           }
+          if(!found) msg = "No suitable video file found for auto QC";
         }
         else if(action == WatchAction::ChecksumVerify)
-          dcpdoctor_cmd = "dcpdoctor checksum-verify \"" + content_dir.string() + "\" 2>&1";
-
-        if(!dcpdoctor_cmd.empty())
         {
-          int ret = system(dcpdoctor_cmd.c_str());
-          ok = (ret == 0);
-          msg = ok ? "dcpdoctor check passed" : "dcpdoctor check failed (exit " + std::to_string(ret) + ")";
+          dcpdoctor::ChecksumVerifyOptions opts;
+          opts.package_dir = content_dir;
+          auto result = dcpdoctor::verify_package_checksums(opts);
+          ok = result.all_valid;
+          msg = ok ? "Checksums verified" : "Checksum verification failed";
         }
-        else
-          msg = "No suitable file found for dcpdoctor check";
       }
       break;
     case WatchAction::Custom: {
