@@ -1,6 +1,7 @@
 #include "imfwizard/imfwizard.h"
 #include "imfwizard/info.h"
 #include "imfwizard/supplemental.h"
+#include "imfwizard/validate.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <filesystem>
@@ -48,6 +49,26 @@ int main(int argc, char* argv[])
     auto* info_cmd = app.add_subcommand("info", "Display information about an existing IMP");
     std::string imp_dir;
     info_cmd->add_option("imp_dir", imp_dir, "IMP directory")->required()
+        ->check(CLI::ExistingDirectory);
+
+    // === ENCODE subcommand ===
+    auto* encode_cmd = app.add_subcommand("encode", "Encode image sequence to JPEG 2000");
+    std::string enc_input, enc_output;
+    float enc_bitrate = 250.0f;
+    uint32_t enc_threads = 0;
+    bool enc_cinema = true;
+
+    encode_cmd->add_option("-i,--input", enc_input, "Input image sequence directory")->required()
+        ->check(CLI::ExistingDirectory);
+    encode_cmd->add_option("-o,--output", enc_output, "Output J2K directory")->required();
+    encode_cmd->add_option("--bitrate", enc_bitrate, "Target bitrate (Mbps)")->default_val(250.0f);
+    encode_cmd->add_option("--threads", enc_threads, "Number of threads (0=auto)")->default_val(0);
+    encode_cmd->add_flag("--no-cinema", [&](int64_t){ enc_cinema = false; }, "Disable cinema profile");
+
+    // === VALIDATE subcommand ===
+    auto* val_cmd = app.add_subcommand("validate", "Validate an existing IMP (via Photon)");
+    std::string val_dir;
+    val_cmd->add_option("imp_dir", val_dir, "IMP directory to validate")->required()
         ->check(CLI::ExistingDirectory);
 
     // === SUPPLEMENT subcommand ===
@@ -157,6 +178,41 @@ int main(int argc, char* argv[])
         std::cout << "  PKL: urn:uuid:" << result.pkl_uuid << "\n";
         std::cout << "  New track files: " << result.new_track_files.size() << "\n";
         return 0;
+    }
+
+    if (encode_cmd->parsed()) {
+        imfwizard::EncodeOptions opts;
+        opts.input_dir = enc_input;
+        opts.output_dir = enc_output;
+        opts.target_bitrate_mbps = enc_bitrate;
+        opts.num_threads = enc_threads;
+        opts.cinema_profile = enc_cinema;
+
+        auto result = imfwizard::encode_to_j2k(opts);
+        if (!result.success) {
+            spdlog::error("Encoding failed: {}", result.error);
+            return 1;
+        }
+
+        std::cout << "Encoded " << result.frame_count << " frames to "
+                  << result.output_dir << "\n";
+        return 0;
+    }
+
+    if (val_cmd->parsed()) {
+        auto result = imfwizard::validate_with_photon(val_dir);
+        if (result.valid) {
+            std::cout << "IMP is valid.\n";
+        } else {
+            std::cout << "IMP validation issues:\n";
+        }
+        for (const auto& note : result.notes) {
+            const char* sev = "INFO";
+            if (note.severity == imfwizard::ValidationNote::Severity::error) sev = "ERROR";
+            else if (note.severity == imfwizard::ValidationNote::Severity::warning) sev = "WARN";
+            std::cout << "  [" << sev << "] " << note.message << "\n";
+        }
+        return result.valid ? 0 : 1;
     }
 
     return 0;

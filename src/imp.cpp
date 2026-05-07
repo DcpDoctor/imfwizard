@@ -1,6 +1,7 @@
 #include "imfwizard/imp.h"
 #include "imfwizard/mxf_wrap.h"
 #include "imfwizard/timed_text.h"
+#include "imfwizard/encode.h"
 #include "imfwizard/cpl.h"
 #include "imfwizard/pkl.h"
 #include "imfwizard/assetmap.h"
@@ -19,10 +20,28 @@ ImpResult create_ov_imp(const ImpOptions& opts)
     try {
         std::filesystem::create_directories(opts.output_dir);
 
+        // Auto-encode if input is not J2K
+        std::filesystem::path j2k_dir = opts.video_dir;
+        auto seq_format = detect_sequence_format(opts.video_dir);
+        if (seq_format != ImageFormat::J2K && seq_format != ImageFormat::Unknown) {
+            spdlog::info("Input is {} — encoding to J2K first...",
+                         static_cast<int>(seq_format));
+            EncodeOptions enc_opts;
+            enc_opts.input_dir = opts.video_dir;
+            enc_opts.output_dir = opts.output_dir / "j2k_encoded";
+            enc_opts.cinema_profile = true;
+            auto enc_result = encode_to_j2k(enc_opts);
+            if (!enc_result.success) {
+                result.error = "Encoding failed: " + enc_result.error;
+                return result;
+            }
+            j2k_dir = enc_result.output_dir;
+        }
+
         // Wrap video
         WrapOptions video_opts;
         video_opts.type = EssenceType::J2K;
-        video_opts.input_dir = opts.video_dir;
+        video_opts.input_dir = j2k_dir;
         video_opts.output_path = opts.output_dir / ("VID_" + generate_uuid_bare() + ".mxf");
         video_opts.edit_rate_num = opts.edit_rate_num;
         video_opts.edit_rate_den = opts.edit_rate_den;

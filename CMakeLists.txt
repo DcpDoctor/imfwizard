@@ -43,6 +43,9 @@ add_library(imfwizard_core STATIC
     src/info.cpp
     src/supplemental.cpp
     src/timed_text.cpp
+    src/encode.cpp
+    src/validate.cpp
+    src/multi_cpl.cpp
     src/uuid.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
