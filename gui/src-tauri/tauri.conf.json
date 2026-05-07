@@ -39,7 +39,14 @@
   },
   "plugins": {
     "shell": {
-      "open": true
+      "open": true,
+      "scope": [
+        {
+          "name": "imfwizard",
+          "sidecar": true,
+          "args": true
+        }
+      ]
     }
   }
 }

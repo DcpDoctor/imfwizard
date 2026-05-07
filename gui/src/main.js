@@ -239,6 +239,8 @@ async function refreshJobs() {
   } catch (err) {
     statusBadge.textContent = "Error";
     statusBadge.className = "status-badge offline";
+    document.getElementById("jobs-tbody").innerHTML =
+      `<tr><td colspan="6" style="text-align:center;color:var(--accent)">${err}</td></tr>`;
   }
 }
 
