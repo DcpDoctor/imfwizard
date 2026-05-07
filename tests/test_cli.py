@@ -9,7 +9,23 @@ PASS = 0
 FAIL = 0
 BINARY = os.path.join(os.path.dirname(__file__), "..", "build", "imfwizard")
 
-if not os.path.isfile(BINARY):
+if sys.platform == "win32":
+    # Try common Windows build locations
+    candidates = [
+        BINARY + ".exe",
+        os.path.join(os.path.dirname(__file__), "..", "build", "Debug", "imfwizard.exe"),
+        os.path.join(os.path.dirname(__file__), "..", "build", "Release", "imfwizard.exe"),
+        os.path.join("Release", "imfwizard.exe"),
+        os.path.join("Debug", "imfwizard.exe"),
+        "imfwizard.exe",
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            BINARY = c
+            break
+    else:
+        BINARY = "imfwizard.exe"
+elif not os.path.isfile(BINARY):
     BINARY = "./imfwizard"
 
 

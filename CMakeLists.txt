@@ -109,7 +109,8 @@ if(WIN32)
         spdlog::spdlog
         libas02
         libasdcp
-        libkumu)
+        libkumu
+        ws2_32)
 else()
     target_link_libraries(imfwizard_core PUBLIC
         PkgConfig::LIBXML2
