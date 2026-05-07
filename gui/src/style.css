@@ -510,6 +510,10 @@ body.light-theme .field select option {
   backdrop-filter: blur(4px);
 }
 
+.drop-overlay[hidden] {
+  display: none;
+}
+
 .drop-content {
   display: flex;
   flex-direction: column;
