@@ -9,6 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Python bindings require position-independent code for all static libs
+option(BUILD_PYTHON_BINDINGS "Build Python bindings via SWIG" OFF)
+if(BUILD_PYTHON_BINDINGS)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 # Dependencies
 if(WIN32)
     find_package(LibXml2 REQUIRED)
@@ -132,4 +138,9 @@ if(BUILD_TESTING)
     # job_queue_test and cli_test both use /tmp/imfwizard.sock — serialize them
     set_tests_properties(imfwizard_job_queue_test imfwizard_cli_test
         PROPERTIES RESOURCE_LOCK "imfwizard_socket")
+endif()
+
+# Python bindings (SWIG)
+if(BUILD_PYTHON_BINDINGS)
+  add_subdirectory(bindings/python)
 endif()
