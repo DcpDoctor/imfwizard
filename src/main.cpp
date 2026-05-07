@@ -2,6 +2,8 @@
 #include "imfwizard/info.h"
 #include "imfwizard/supplemental.h"
 #include "imfwizard/validate.h"
+#include "imfwizard/transcode.h"
+#include "imfwizard/dolby_vision.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <filesystem>
@@ -87,6 +89,19 @@ int main(int argc, char* argv[])
     sup_cmd->add_option("-o,--output", sup_output_dir, "Output supplemental IMP directory")->required();
     sup_cmd->add_option("--entry-point", sup_entry_point, "Frame offset in OV to replace from");
     sup_cmd->add_option("--duration", sup_duration, "Number of frames to replace");
+
+    // === TRANSCODE subcommand ===
+    auto* trans_cmd = app.add_subcommand("transcode", "Transcode video file to image sequence");
+    std::string trans_input, trans_output, trans_format = "tiff";
+    uint16_t trans_bit_depth = 16;
+    uint32_t trans_threads = 0;
+
+    trans_cmd->add_option("-i,--input", trans_input, "Input video file (ProRes, DNxHR, etc.)")->required()
+        ->check(CLI::ExistingFile);
+    trans_cmd->add_option("-o,--output", trans_output, "Output image sequence directory")->required();
+    trans_cmd->add_option("-f,--format", trans_format, "Output format (tiff, dpx, exr, png)")->default_val("tiff");
+    trans_cmd->add_option("--bit-depth", trans_bit_depth, "Output bit depth")->default_val(16);
+    trans_cmd->add_option("--threads", trans_threads, "Number of threads (0=auto)")->default_val(0);
 
     CLI11_PARSE(app, argc, argv);
 
@@ -213,6 +228,26 @@ int main(int argc, char* argv[])
             std::cout << "  [" << sev << "] " << note.message << "\n";
         }
         return result.valid ? 0 : 1;
+    }
+
+    if (trans_cmd->parsed()) {
+        imfwizard::TranscodeOptions opts;
+        opts.input_file = trans_input;
+        opts.output_dir = trans_output;
+        opts.output_format = trans_format;
+        opts.bit_depth = trans_bit_depth;
+        opts.threads = trans_threads;
+
+        auto result = imfwizard::transcode_to_sequence(opts);
+        if (!result.success) {
+            spdlog::error("Transcode failed: {}", result.error);
+            return 1;
+        }
+
+        std::cout << "Transcoded " << result.frame_count << " frames ("
+                  << result.width << "x" << result.height << " @ "
+                  << result.fps << " fps) to " << result.output_dir << "\n";
+        return 0;
     }
 
     return 0;

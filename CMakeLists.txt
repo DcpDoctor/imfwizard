@@ -46,6 +46,8 @@ add_library(imfwizard_core STATIC
     src/encode.cpp
     src/validate.cpp
     src/multi_cpl.cpp
+    src/transcode.cpp
+    src/dolby_vision.cpp
     src/uuid.cpp)
 
 target_include_directories(imfwizard_core PUBLIC

@@ -292,7 +292,7 @@
 
 <section class="hero">
     <h1>Create IMF Packages<br>with <span>IMF Wizard</span></h1>
-    <p>Open-source CLI tool and desktop GUI for creating standards-compliant Interoperable Master Format packages.</p>
+    <p>Open-source CLI tool and desktop GUI for creating standards-compliant Interoperable Master Format packages. Supports image encoding, ProRes transcoding, Dolby Vision, subtitles, and Netflix Photon validation.</p>
     <div class="hero-buttons">
         <a href="https://github.com/DcpDoctor/imfwizard" class="btn btn-primary">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -313,9 +313,34 @@
             <p>Wrap JPEG 2000 codestreams and PCM audio into SMPTE 2067-5 compliant MXF track files.</p>
         </div>
         <div class="feature-card">
-            <div class="feature-icon" style="background: rgba(34,211,238,0.15);">📋</div>
-            <h3>CPL Generation</h3>
-            <p>Generate Composition Playlists conforming to ST 2067-3 with proper segment and sequence structures.</p>
+            <div class="feature-icon" style="background: rgba(34,211,238,0.15);">🎬</div>
+            <h3>Image Encoding Pipeline</h3>
+            <p>Accept DPX, TIFF, EXR, PNG, BMP, JPEG input — auto-encode to JPEG 2000 via grok or OpenJPEG.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(251,191,36,0.15);">🎞️</div>
+            <h3>ProRes / DNxHR Transcode</h3>
+            <p>Transcode ProRes, DNxHR, H.264, H.265, and AV1 video files to image sequences via ffmpeg.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(74,222,128,0.15);">📋</div>
+            <h3>Multi-CPL &amp; Supplemental</h3>
+            <p>Create multi-composition IMPs and supplemental versions with segment replacement.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(251,113,133,0.15);">📝</div>
+            <h3>TTML Subtitles</h3>
+            <p>Package TTML / IMSC subtitles as AS-02 timed text MXF track files.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(56,189,248,0.15);">🎥</div>
+            <h3>Dolby Vision 4.0</h3>
+            <p>Inject Dolby Vision RPU metadata for HDR IMF packaging using dovi_tool.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(167,139,250,0.15);">✅</div>
+            <h3>Photon Validation</h3>
+            <p>Validate output IMPs using Netflix Photon for SMPTE conformance checking.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(251,191,36,0.15);">🔐</div>
@@ -324,18 +349,8 @@
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(74,222,128,0.15);">🖥️</div>
-            <h3>Desktop GUI</h3>
-            <p>Tauri-based desktop application with drag-and-drop media import and visual timeline editing.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon" style="background: rgba(251,113,133,0.15);">⚡</div>
-            <h3>Fast CLI</h3>
-            <p>High-performance C++23 command-line tool for scripting and pipeline integration.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon" style="background: rgba(56,189,248,0.15);">🌐</div>
-            <h3>Cross-Platform</h3>
-            <p>Build and run on Linux, macOS, and Windows with full CI across all platforms.</p>
+            <h3>Desktop GUI &amp; CLI</h3>
+            <p>Tauri desktop app with drag-and-drop import, plus high-performance C++23 CLI for scripting.</p>
         </div>
     </div>
 </section>
@@ -351,39 +366,49 @@
 <span class="cmd">$</span> cmake .. <span class="flag">-DCMAKE_BUILD_TYPE=Release</span><br>
 <span class="cmd">$</span> make <span class="flag">-j$(nproc)</span><br>
 <br>
+<span style="color:var(--text-tertiary)"># Create IMP from J2K + WAV</span><br>
 <span class="cmd">$</span> ./imfwizard create \<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--title</span> <span class="val">"My Feature Film"</span> \<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--video</span> <span class="val">/path/to/j2k_frames/</span> \<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--audio</span> <span class="val">/path/to/audio.wav</span> \<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--output</span> <span class="val">/path/to/output_imp/</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--output</span> <span class="val">/path/to/output_imp/</span><br>
+<br>
+<span style="color:var(--text-tertiary)"># Create IMP from DPX/TIFF (auto-encodes to J2K)</span><br>
+<span class="cmd">$</span> ./imfwizard create <span class="flag">--title</span> <span class="val">"My Film"</span> <span class="flag">--video</span> <span class="val">/path/to/dpx/</span> <span class="flag">--audio</span> <span class="val">audio.wav</span> <span class="flag">-o</span> <span class="val">out/</span><br>
+<br>
+<span style="color:var(--text-tertiary)"># Transcode ProRes to image sequence</span><br>
+<span class="cmd">$</span> ./imfwizard transcode <span class="flag">-i</span> <span class="val">input.mov</span> <span class="flag">-o</span> <span class="val">/path/to/frames/</span> <span class="flag">-f</span> <span class="val">tiff</span><br>
+<br>
+<span style="color:var(--text-tertiary)"># Validate an IMP with Netflix Photon</span><br>
+<span class="cmd">$</span> ./imfwizard validate <span class="val">/path/to/imp/</span>
         </code>
     </div>
 </section>
 
 <section class="section" id="roadmap">
-    <h2 class="section-title">Roadmap</h2>
-    <p class="section-subtitle">Building towards a complete IMF workflow.</p>
+    <h2 class="section-title">Capabilities</h2>
+    <p class="section-subtitle">Comprehensive IMF workflow — from raw footage to validated delivery.</p>
 
     <div class="roadmap">
         <div class="roadmap-item active">
-            <div class="phase">Phase 1 — Current</div>
-            <h4>OV Creator</h4>
-            <p>J2K + WAV → AS-02 MXF track files, CPL, PKL, AssetMap. Valid App#2E Original Version IMP.</p>
+            <div class="phase">Input</div>
+            <h4>Any Source Format</h4>
+            <p>J2K, DPX, TIFF, EXR, PNG, ProRes, DNxHR, H.264, H.265, AV1. Auto-detects and converts.</p>
         </div>
-        <div class="roadmap-item">
-            <div class="phase">Phase 2</div>
-            <h4>Supplemental IMP</h4>
-            <p>Create supplemental versions referencing OV track files. Partial PKL/AssetMap generation.</p>
+        <div class="roadmap-item active">
+            <div class="phase">Packaging</div>
+            <h4>Full IMP Creation</h4>
+            <p>OV &amp; Supplemental IMPs, multi-CPL, TTML subtitles, XML signing, SHA-1 hashing.</p>
         </div>
-        <div class="roadmap-item">
-            <div class="phase">Phase 3</div>
-            <h4>Encoding Pipeline</h4>
-            <p>Accept TIFF/EXR/DPX image sequences. Encode to J2K via grok. Optional ACES (App#5) support.</p>
+        <div class="roadmap-item active">
+            <div class="phase">HDR</div>
+            <h4>Dolby Vision 4.0</h4>
+            <p>RPU metadata injection for Dolby Vision HDR IMF packages via dovi_tool.</p>
         </div>
-        <div class="roadmap-item">
-            <div class="phase">Phase 4</div>
-            <h4>Full GUI</h4>
-            <p>Timeline editor, drag-drop media import, supplemental creation workflow, validation integration.</p>
+        <div class="roadmap-item active">
+            <div class="phase">QC</div>
+            <h4>Photon Validation</h4>
+            <p>Validate IMPs against SMPTE standards using Netflix Photon. Detailed error reporting.</p>
         </div>
     </div>
 </section>
