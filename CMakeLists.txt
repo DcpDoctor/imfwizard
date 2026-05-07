@@ -105,11 +105,8 @@ add_library(imfwizard_core STATIC
     src/shell_completion.cpp
     src/schema_validate.cpp
     src/pdf_report.cpp
-    src/auto_qc.cpp
     src/subtitle_convert.cpp
-    src/mxf_unwrap.cpp
     src/hdr_validate.cpp
-    src/checksum_verify.cpp
     src/timecode.cpp)
 
 target_include_directories(imfwizard_core PUBLIC

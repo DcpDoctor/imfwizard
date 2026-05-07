@@ -49,11 +49,8 @@
 #include "imfwizard/shell_completion.h"
 #include "imfwizard/schema_validate.h"
 #include "imfwizard/pdf_report.h"
-#include "imfwizard/auto_qc.h"
 #include "imfwizard/subtitle_convert.h"
-#include "imfwizard/mxf_unwrap.h"
 #include "imfwizard/hdr_validate.h"
-#include "imfwizard/checksum_verify.h"
 #include "imfwizard/timecode.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
@@ -199,12 +196,23 @@ int main(int argc, char* argv[])
 
   // === WATCH subcommand ===
   auto* watch_cmd = app.add_subcommand("watch", "Watch folder for auto-IMP creation");
-  std::string watch_dir, watch_output;
+  std::string watch_dir, watch_output, watch_custom_cmd;
+  bool watch_recursive = false, watch_no_inotify = false;
+  uint32_t watch_poll_ms = 2000, watch_stability_ms = 3000;
+  std::vector<std::string> watch_actions_str;
+  std::vector<std::string> watch_extensions;
 
   watch_cmd->add_option("-w,--watch", watch_dir, "Directory to watch")
       ->required()
       ->check(CLI::ExistingDirectory);
   watch_cmd->add_option("-o,--output", watch_output, "Output base directory")->required();
+  watch_cmd->add_flag("-r,--recursive", watch_recursive, "Watch subdirectories recursively");
+  watch_cmd->add_flag("--no-inotify", watch_no_inotify, "Disable inotify, use polling");
+  watch_cmd->add_option("--poll-interval", watch_poll_ms, "Poll interval in ms")->default_val(2000);
+  watch_cmd->add_option("--stability-delay", watch_stability_ms, "Wait time before processing")->default_val(3000);
+  watch_cmd->add_option("--actions", watch_actions_str, "Actions: imp,qc,validate,checksum,hdr,custom");
+  watch_cmd->add_option("--extensions", watch_extensions, "File extensions to watch (e.g. .mxf .wav)");
+  watch_cmd->add_option("--custom-cmd", watch_custom_cmd, "Custom command ($FILE, $OUTPUT)");
 
   // === REPORT subcommand ===
   auto* report_cmd = app.add_subcommand("report", "Generate QC report for an IMP");
@@ -414,14 +422,26 @@ int main(int argc, char* argv[])
   edl_cmd->add_option("--output,-o", edl_output, "Output directory");
 
   // === COMPARE subcommand ===
-  auto* cmp_cmd = app.add_subcommand("compare", "Frame-accurate comparison of two IMPs");
-  std::string cmp_imp_a, cmp_imp_b, cmp_output;
-  bool cmp_psnr = true, cmp_ssim = false;
-  cmp_cmd->add_option("--imp-a", cmp_imp_a, "First IMP directory")->required();
-  cmp_cmd->add_option("--imp-b", cmp_imp_b, "Second IMP directory")->required();
-  cmp_cmd->add_option("--output,-o", cmp_output, "Report output file");
+  auto* cmp_cmd = app.add_subcommand("compare", "Frame-accurate comparison of two IMPs or files");
+  std::string cmp_imp_a, cmp_imp_b, cmp_output, cmp_vmaf_model;
+  bool cmp_psnr = true, cmp_ssim = false, cmp_vmaf = false;
+  bool cmp_html = false, cmp_extract = false;
+  uint32_t cmp_start = 0, cmp_end = 0, cmp_interval = 1;
+  double cmp_thresh_psnr = 40.0, cmp_thresh_ssim = 0.95;
+  cmp_cmd->add_option("--imp-a", cmp_imp_a, "First IMP directory or video file")->required();
+  cmp_cmd->add_option("--imp-b", cmp_imp_b, "Second IMP directory or video file")->required();
+  cmp_cmd->add_option("--output,-o", cmp_output, "Report output directory");
   cmp_cmd->add_flag("--psnr", cmp_psnr, "Calculate PSNR");
   cmp_cmd->add_flag("--ssim", cmp_ssim, "Calculate SSIM");
+  cmp_cmd->add_flag("--vmaf", cmp_vmaf, "Calculate VMAF");
+  cmp_cmd->add_option("--vmaf-model", cmp_vmaf_model, "Path to VMAF model file");
+  cmp_cmd->add_flag("--html", cmp_html, "Generate HTML visual report");
+  cmp_cmd->add_flag("--extract-diffs", cmp_extract, "Extract diff frame images");
+  cmp_cmd->add_option("--start-frame", cmp_start, "Start frame (0 = beginning)");
+  cmp_cmd->add_option("--end-frame", cmp_end, "End frame (0 = end)");
+  cmp_cmd->add_option("--interval", cmp_interval, "Compare every Nth frame")->default_val(1);
+  cmp_cmd->add_option("--threshold-psnr", cmp_thresh_psnr, "PSNR threshold (dB)")->default_val(40.0);
+  cmp_cmd->add_option("--threshold-ssim", cmp_thresh_ssim, "SSIM threshold")->default_val(0.95);
 
   // === PLUGIN subcommand ===
   auto* plug_cmd = app.add_subcommand("plugin", "Manage and run plugins");
@@ -688,22 +708,6 @@ int main(int argc, char* argv[])
   pdfreport_cmd->add_option("--title", pdfreport_title, "Report title");
   pdfreport_cmd->add_option("--author", pdfreport_author, "Report author")->default_val("IMF Wizard");
 
-  // === Auto QC subcommand ===
-  auto* autoqc_cmd = app.add_subcommand("auto-qc", "Automated QC: black/freeze/silence/clipping detection");
-  std::string autoqc_video, autoqc_audio;
-  uint32_t autoqc_fps_num = 24, autoqc_fps_den = 1;
-  bool autoqc_json = false, autoqc_no_black = false, autoqc_no_freeze = false;
-  bool autoqc_no_silence = false, autoqc_no_clipping = false;
-  autoqc_cmd->add_option("--video,-v", autoqc_video, "Video file or J2K directory");
-  autoqc_cmd->add_option("--audio,-a", autoqc_audio, "Audio file (WAV/MXF)");
-  autoqc_cmd->add_option("--fps-num", autoqc_fps_num, "FPS numerator")->default_val(24);
-  autoqc_cmd->add_option("--fps-den", autoqc_fps_den, "FPS denominator")->default_val(1);
-  autoqc_cmd->add_flag("--json", autoqc_json, "Output results as JSON");
-  autoqc_cmd->add_flag("--no-black", autoqc_no_black, "Skip black frame detection");
-  autoqc_cmd->add_flag("--no-freeze", autoqc_no_freeze, "Skip freeze frame detection");
-  autoqc_cmd->add_flag("--no-silence", autoqc_no_silence, "Skip silence detection");
-  autoqc_cmd->add_flag("--no-clipping", autoqc_no_clipping, "Skip clipping detection");
-
   // === Subtitle convert subcommand ===
   auto* subconv_cmd = app.add_subcommand("subtitle-convert", "Convert between subtitle formats (SRT/TTML/WebVTT/SCC/STL/IMSC)");
   std::string subconv_input, subconv_output, subconv_format, subconv_lang = "en";
@@ -715,23 +719,6 @@ int main(int argc, char* argv[])
   subconv_cmd->add_option("--fps", subconv_fps, "Frame rate (for SCC timecodes)")->default_val(24.0);
   subconv_cmd->add_option("--offset", subconv_offset, "Time offset in seconds");
 
-  // === MXF unwrap subcommand ===
-  auto* mxfunwrap_cmd = app.add_subcommand("mxf-unwrap", "Extract essence from MXF container");
-  std::string mxfunwrap_input, mxfunwrap_output;
-  bool mxfunwrap_video_only = false, mxfunwrap_audio_only = false;
-  uint32_t mxfunwrap_start = 0, mxfunwrap_end = 0;
-  mxfunwrap_cmd->add_option("--input,-i", mxfunwrap_input, "MXF file")->required();
-  mxfunwrap_cmd->add_option("--output,-o", mxfunwrap_output, "Output directory")->required();
-  mxfunwrap_cmd->add_flag("--video-only", mxfunwrap_video_only, "Extract only video");
-  mxfunwrap_cmd->add_flag("--audio-only", mxfunwrap_audio_only, "Extract only audio");
-  mxfunwrap_cmd->add_option("--start", mxfunwrap_start, "Start frame");
-  mxfunwrap_cmd->add_option("--end", mxfunwrap_end, "End frame");
-
-  // === MXF probe subcommand ===
-  auto* mxfprobe_cmd = app.add_subcommand("mxf-probe", "Display MXF track information");
-  std::string mxfprobe_input;
-  mxfprobe_cmd->add_option("--input,-i", mxfprobe_input, "MXF file")->required();
-
   // === HDR validate subcommand ===
   auto* hdrval_cmd = app.add_subcommand("hdr-validate", "Validate HDR metadata against spec");
   std::string hdrval_video, hdrval_spec = "hdr10";
@@ -741,14 +728,6 @@ int main(int argc, char* argv[])
   hdrval_cmd->add_option("--max-cll", hdrval_max_cll, "Expected max content light level");
   hdrval_cmd->add_option("--max-fall", hdrval_max_fall, "Expected max frame-average light level");
   hdrval_cmd->add_option("--bit-depth", hdrval_bit_depth, "Expected bit depth")->default_val(10);
-
-  // === Checksum verify subcommand ===
-  auto* cksum_cmd = app.add_subcommand("checksum-verify", "Verify IMP asset checksums against PKL");
-  std::string cksum_imp;
-  bool cksum_sizes_only = false, cksum_stop_first = false;
-  cksum_cmd->add_option("--imp,-i", cksum_imp, "IMP directory")->required();
-  cksum_cmd->add_flag("--sizes-only", cksum_sizes_only, "Only check file sizes (skip hash computation)");
-  cksum_cmd->add_flag("--stop-first", cksum_stop_first, "Stop on first error");
 
   // === Timecode convert subcommand ===
   auto* tcconv_cmd = app.add_subcommand("timecode-convert", "Convert timecode between frame rates");
@@ -981,7 +960,34 @@ int main(int argc, char* argv[])
     imfwizard::WatchConfig config;
     config.watch_dir = watch_dir;
     config.output_dir = watch_output;
+    config.recursive = watch_recursive;
+    config.use_inotify = !watch_no_inotify;
+    config.poll_interval_ms = watch_poll_ms;
+    config.stability_delay_ms = watch_stability_ms;
+    config.include_extensions = watch_extensions;
+    config.custom_command = watch_custom_cmd;
     config.on_status = [](const std::string& msg) { std::cout << "[watch] " << msg << "\n"; };
+
+    // Parse action strings
+    if(!watch_actions_str.empty())
+    {
+      config.actions.clear();
+      for(const auto& a : watch_actions_str)
+      {
+        if(a == "imp")
+          config.actions.push_back(imfwizard::WatchAction::CreateImp);
+        else if(a == "qc")
+          config.actions.push_back(imfwizard::WatchAction::AutoQc);
+        else if(a == "validate")
+          config.actions.push_back(imfwizard::WatchAction::Validate);
+        else if(a == "checksum")
+          config.actions.push_back(imfwizard::WatchAction::ChecksumVerify);
+        else if(a == "hdr")
+          config.actions.push_back(imfwizard::WatchAction::HdrValidate);
+        else if(a == "custom")
+          config.actions.push_back(imfwizard::WatchAction::Custom);
+      }
+    }
 
     std::atomic<bool> stop{false};
     std::cout << "Watching " << watch_dir << " (Ctrl+C to stop)...\n";
@@ -1526,16 +1532,43 @@ int main(int argc, char* argv[])
     opts.imp_b = cmp_imp_b;
     if(!cmp_output.empty())
       opts.output_dir = cmp_output;
-    auto result = imfwizard::compare_imps(opts);
+    opts.compute_ssim = cmp_ssim;
+    opts.compute_vmaf = cmp_vmaf;
+    if(!cmp_vmaf_model.empty())
+      opts.vmaf_model = cmp_vmaf_model;
+    opts.generate_html = cmp_html;
+    opts.extract_diff_frames = cmp_extract;
+    opts.start_frame = cmp_start;
+    opts.end_frame = cmp_end;
+    opts.sample_interval = cmp_interval;
+    opts.threshold_psnr = cmp_thresh_psnr;
+    opts.threshold_ssim = cmp_thresh_ssim;
+
+    imfwizard::CompareResult result;
+    namespace fs = std::filesystem;
+    // Support both IMP directories and direct file comparison
+    if(fs::is_regular_file(cmp_imp_a) && fs::is_regular_file(cmp_imp_b))
+      result = imfwizard::compare_files(cmp_imp_a, cmp_imp_b, opts);
+    else
+      result = imfwizard::compare_imps(opts);
+
     if(!result.error.empty())
     {
       std::cerr << "Error: " << result.error << "\n";
       return 1;
     }
+    std::cout << "Frames compared: " << result.frames_compared << "\n";
+    std::cout << "Frames different: " << result.frames_different << "\n";
     std::cout << "Identical: " << (result.identical ? "yes" : "no") << "\n";
-    std::cout << "PSNR: " << result.avg_psnr << " dB\n";
+    std::cout << "PSNR: avg=" << result.avg_psnr << " dB, min=" << result.min_psnr << " dB\n";
     if(cmp_ssim)
-      std::cout << "SSIM: " << result.avg_ssim << "\n";
+      std::cout << "SSIM: avg=" << result.avg_ssim << ", min=" << result.min_ssim << "\n";
+    if(cmp_vmaf)
+      std::cout << "VMAF: " << result.vmaf_score << "\n";
+    if(!result.csv_path.empty())
+      std::cout << "CSV: " << result.csv_path.string() << "\n";
+    if(!result.html_report_path.empty())
+      std::cout << "HTML: " << result.html_report_path.string() << "\n";
     return 0;
   }
   if(plug_cmd->parsed())
@@ -2154,48 +2187,9 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  // === Auto QC handler ===
-  if(autoqc_cmd->parsed())
-  {
-    if(autoqc_video.empty() && autoqc_audio.empty())
-    {
-      std::cerr << "Error: specify --video and/or --audio\n";
-      return 1;
-    }
-    imfwizard::AutoQcOptions opts;
-    opts.video_path = autoqc_video;
-    opts.audio_path = autoqc_audio;
-    opts.fps_num = autoqc_fps_num;
-    opts.fps_den = autoqc_fps_den;
-    opts.detect_black = !autoqc_no_black;
-    opts.detect_freeze = !autoqc_no_freeze;
-    opts.detect_silence = !autoqc_no_silence;
-    opts.detect_clipping = !autoqc_no_clipping;
-    opts.json_output = autoqc_json;
-
-    auto result = imfwizard::run_auto_qc(opts);
-    if(!result.success)
-    {
-      std::cerr << "Error: " << result.error << "\n";
-      return 1;
-    }
-
-    if(autoqc_json)
-    {
-      std::cout << imfwizard::auto_qc_to_json(result);
-    }
-    else
-    {
-      std::cout << "Auto QC Results: " << result.issues.size() << " issues found\n";
-      std::cout << "  Errors: " << result.error_count << "\n";
-      std::cout << "  Warnings: " << result.warning_count << "\n\n";
-      for(const auto& issue : result.issues)
-      {
-        std::cout << "  [" << issue.severity << "] " << issue.description << "\n";
-      }
-    }
-    return (result.error_count > 0) ? 1 : 0;
-  }
+  // === Auto QC, MXF unwrap/probe, and checksum verification
+  // NOTE: These tools have been moved to dcpdoctor (shared DCP/IMF validation tool).
+  // Use: dcpdoctor auto-qc, dcpdoctor mxf-extract, dcpdoctor checksum-verify
 
   // === Subtitle convert handler ===
   if(subconv_cmd->parsed())
@@ -2222,58 +2216,6 @@ int main(int argc, char* argv[])
       return 1;
     }
     std::cout << "Converted " << result.cue_count << " cues -> " << result.output_path.string() << "\n";
-    return 0;
-  }
-
-  // === MXF unwrap handler ===
-  if(mxfunwrap_cmd->parsed())
-  {
-    imfwizard::MxfUnwrapOptions opts;
-    opts.input = mxfunwrap_input;
-    opts.output_dir = mxfunwrap_output;
-    opts.extract_video = !mxfunwrap_audio_only;
-    opts.extract_audio = !mxfunwrap_video_only;
-    opts.start_frame = mxfunwrap_start;
-    opts.end_frame = mxfunwrap_end;
-
-    auto result = imfwizard::unwrap_mxf(opts);
-    if(!result.success)
-    {
-      std::cerr << "Error: " << result.error << "\n";
-      return 1;
-    }
-    std::cout << "Extracted " << result.extracted_files.size() << " files";
-    if(result.frames_extracted > 0)
-      std::cout << " (" << result.frames_extracted << " video frames)";
-    std::cout << "\n";
-    return 0;
-  }
-
-  // === MXF probe handler ===
-  if(mxfprobe_cmd->parsed())
-  {
-    auto result = imfwizard::probe_mxf_detailed(mxfprobe_input);
-    if(!result.success)
-    {
-      std::cerr << "Error: " << result.error << "\n";
-      return 1;
-    }
-    std::cout << "Container: " << result.container_label << "\n";
-    std::cout << "File size: " << result.file_size << " bytes\n";
-    std::cout << "Tracks: " << result.tracks.size() << "\n\n";
-    for(size_t i = 0; i < result.tracks.size(); ++i)
-    {
-      const auto& t = result.tracks[i];
-      std::cout << "  Track " << (i + 1) << ": " << t.essence_type << " (" << t.codec << ")\n";
-      if(t.width > 0)
-        std::cout << "    Resolution: " << t.width << "x" << t.height << "\n";
-      if(t.channels > 0)
-        std::cout << "    Channels: " << t.channels << " @ " << t.sample_rate << " Hz\n";
-      if(t.duration > 0)
-        std::cout << "    Duration: " << t.duration << " edit units\n";
-      if(t.bit_depth > 0)
-        std::cout << "    Bit depth: " << t.bit_depth << "\n";
-    }
     return 0;
   }
 
@@ -2316,33 +2258,6 @@ int main(int argc, char* argv[])
       }
     }
     return result.valid ? 0 : 1;
-  }
-
-  // === Checksum verify handler ===
-  if(cksum_cmd->parsed())
-  {
-    imfwizard::ChecksumVerifyOptions opts;
-    opts.imp_dir = cksum_imp;
-    opts.verify_hashes = !cksum_sizes_only;
-    opts.stop_on_first_error = cksum_stop_first;
-
-    auto result = imfwizard::verify_imp_checksums(opts);
-    if(!result.success)
-    {
-      std::cerr << "Error: " << result.error << "\n";
-      return 1;
-    }
-
-    std::cout << "Checksum Verification: " << (result.all_valid ? "PASS" : "FAIL") << "\n";
-    std::cout << "  Total assets: " << result.total_assets << "\n";
-    std::cout << "  Verified OK: " << result.verified_ok << "\n";
-    if(result.hash_mismatches > 0)
-      std::cout << "  Hash mismatches: " << result.hash_mismatches << "\n";
-    if(result.size_mismatches > 0)
-      std::cout << "  Size mismatches: " << result.size_mismatches << "\n";
-    if(result.missing_files > 0)
-      std::cout << "  Missing files: " << result.missing_files << "\n";
-    return result.all_valid ? 0 : 1;
   }
 
   // === Timecode convert handler ===
