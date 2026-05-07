@@ -1,11 +1,12 @@
-#include "imfwizard/job_queue.h"
 #include <cassert>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
-#include <iostream>
+#include <spdlog/spdlog.h>
 #include <string>
 #include <thread>
+
+#include "imfwizard/job_queue.h"
 
 #ifndef _WIN32
 #include <signal.h>
@@ -19,21 +20,20 @@ using namespace imfwizard;
 static int tests_run = 0;
 static int tests_passed = 0;
 
-#define TEST(name)                               \
-  do                                             \
-  {                                              \
-    tests_run++;                                 \
-    std::cout << "  " << #name << "... ";        \
-    try                                          \
-    {                                            \
-      name();                                    \
-      tests_passed++;                            \
-      std::cout << "PASS\n";                     \
-    }                                            \
-    catch(const std::exception& e)               \
-    {                                            \
-      std::cout << "FAIL: " << e.what() << "\n"; \
-    }                                            \
+#define TEST(name)                                          \
+  do                                                        \
+  {                                                         \
+    tests_run++;                                            \
+    try                                                     \
+    {                                                       \
+      name();                                               \
+      tests_passed++;                                       \
+      spdlog::info("  {}... PASS", #name);                  \
+    }                                                       \
+    catch(const std::exception& e)                          \
+    {                                                       \
+      spdlog::error("  {}... FAIL: {}", #name, e.what());   \
+    }                                                       \
   } while(0)
 
 #define ASSERT(cond)                                        \
@@ -256,24 +256,24 @@ void test_pause_resume()
 
 int main()
 {
-  std::cout << "Job Queue Tests\n";
-  std::cout << "===============\n\n";
+  spdlog::info("Job Queue Tests");
+  spdlog::info("===============");
 
-  std::cout << "Enums:\n";
+  spdlog::info("Enums:");
   TEST(test_job_type_to_string);
   TEST(test_job_type_from_string);
   TEST(test_job_state_to_string);
   TEST(test_job_state_from_string);
 
-  std::cout << "\nPaths:\n";
+  spdlog::info("Paths:");
   TEST(test_jobs_file_path);
   TEST(test_socket_path);
 
-  std::cout << "\nClient (no daemon):\n";
+  spdlog::info("Client (no daemon):");
   TEST(test_client_no_daemon);
 
 #ifndef _WIN32
-  std::cout << "\nDaemon lifecycle:\n";
+  spdlog::info("Daemon lifecycle:");
   TEST(test_daemon_start_stop);
   TEST(test_submit_and_list);
   TEST(test_cancel_job);
@@ -281,6 +281,6 @@ int main()
   TEST(test_pause_resume);
 #endif
 
-  std::cout << "\n" << tests_passed << "/" << tests_run << " tests passed\n";
+  spdlog::info("{}/{} tests passed", tests_passed, tests_run);
   return (tests_passed == tests_run) ? 0 : 1;
 }

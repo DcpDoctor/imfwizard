@@ -1,14 +1,15 @@
+#include <spdlog/spdlog.h>
+
 #include <cassert>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <vector>
 
 #include "imfwizard/profiles.h"
 #include "imfwizard/captions.h"
 #include "imfwizard/channel_map.h"
-#include "imfwizard/qc.h"
+#include "dcpdoctor/qc.h"
 #include "imfwizard/watermark.h"
 #include "imfwizard/accessibility.h"
 
@@ -45,7 +46,7 @@ static void generate_srt_file(const fs::path& path)
 static void test_profiles()
 {
   using namespace imfwizard;
-  std::cout << "  profiles... ";
+  spdlog::info("  profiles... ");
 
   auto netflix = get_profile("netflix");
   assert(netflix.name == "netflix");
@@ -62,13 +63,13 @@ static void test_profiles()
   assert(archival.app_constraint == "App5");
   assert(archival.bit_depth == 16);
 
-  std::cout << "OK\n";
+  spdlog::info("OK");
 }
 
 static void test_captions()
 {
   using namespace imfwizard;
-  std::cout << "  captions... ";
+  spdlog::info("  captions... ");
 
   auto tmp = test_tmp();
   auto srt = tmp / "test.srt";
@@ -85,13 +86,13 @@ static void test_captions()
   assert(ttml.find("Hello World") != std::string::npos);
 
   fs::remove_all(tmp);
-  std::cout << "OK\n";
+  spdlog::info("OK");
 }
 
 static void test_channel_layout()
 {
   using namespace imfwizard;
-  std::cout << "  channel_map... ";
+  spdlog::info("  channel_map... ");
 
   assert(channel_count(ChannelLayout::Mono) == 1);
   assert(channel_count(ChannelLayout::Stereo) == 2);
@@ -100,13 +101,13 @@ static void test_channel_layout()
   assert(std::string(layout_to_ffmpeg(ChannelLayout::Stereo)) == "stereo");
   assert(std::string(layout_to_ffmpeg(ChannelLayout::Surround_51)) == "5.1");
 
-  std::cout << "OK\n";
+  spdlog::info("OK");
 }
 
 static void test_frame_qc()
 {
-  using namespace imfwizard;
-  std::cout << "  frame_qc... ";
+  using namespace dcpdoctor;
+  spdlog::info("  frame_qc... ");
 
   auto tmp = test_tmp() / "qc_frames";
   generate_fake_j2k_frames(tmp, 48, 10000);
@@ -125,13 +126,13 @@ static void test_frame_qc()
   assert(result.frames.size() == 48);
 
   fs::remove_all(tmp);
-  std::cout << "OK\n";
+  spdlog::info("OK");
 }
 
 static void test_watermark()
 {
   using namespace imfwizard;
-  std::cout << "  watermark... ";
+  spdlog::info("  watermark... ");
 
   auto tmp = test_tmp() / "wm_test";
   auto input_dir = tmp / "input";
@@ -154,13 +155,13 @@ static void test_watermark()
   assert(detect.payload.find("TEST") != std::string::npos);
 
   fs::remove_all(tmp);
-  std::cout << "OK\n";
+  spdlog::info("OK");
 }
 
 static void test_accessibility()
 {
   using namespace imfwizard;
-  std::cout << "  accessibility... ";
+  spdlog::info("  accessibility... ");
 
   std::vector<AccessibilityTrack> tracks = {
       {AccessibilityType::AudioDescription, "en", "English Audio Description"},
@@ -173,18 +174,18 @@ static void test_accessibility()
   assert(xml.find("hearing-impaired") != std::string::npos);
   assert(xml.find("sign-language-video") != std::string::npos);
 
-  std::cout << "OK\n";
+  spdlog::info("OK");
 }
 
 int main()
 {
-  std::cout << "Integration tests:\n";
+  spdlog::info("Integration tests:");
   test_profiles();
   test_captions();
   test_channel_layout();
   test_frame_qc();
   test_watermark();
   test_accessibility();
-  std::cout << "All integration tests passed!\n";
+  spdlog::info("All integration tests passed!");
   return 0;
 }

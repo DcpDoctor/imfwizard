@@ -1,30 +1,30 @@
-#include "imfwizard/imfwizard.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
+#include <spdlog/spdlog.h>
 #include <string>
+
+#include "imfwizard/imfwizard.h"
 
 namespace fs = std::filesystem;
 
 static int tests_run = 0;
 static int tests_passed = 0;
 
-#define TEST(name)                               \
-  do                                             \
-  {                                              \
-    tests_run++;                                 \
-    std::cout << "  " << #name << "... ";        \
-    try                                          \
-    {                                            \
-      name();                                    \
-      tests_passed++;                            \
-      std::cout << "PASS\n";                     \
-    }                                            \
-    catch(const std::exception& e)               \
-    {                                            \
-      std::cout << "FAIL: " << e.what() << "\n"; \
-    }                                            \
+#define TEST(name)                                          \
+  do                                                        \
+  {                                                         \
+    tests_run++;                                            \
+    try                                                     \
+    {                                                       \
+      name();                                               \
+      tests_passed++;                                       \
+      spdlog::info("  {}... PASS", #name);                  \
+    }                                                       \
+    catch(const std::exception& e)                          \
+    {                                                       \
+      spdlog::error("  {}... FAIL: {}", #name, e.what());   \
+    }                                                       \
   } while(0)
 
 #define ASSERT(cond)                                        \
@@ -79,17 +79,17 @@ void test_sha1_base64()
 
 int main()
 {
-  std::cout << "IMF Wizard Tests\n";
-  std::cout << "================\n\n";
+  spdlog::info("IMF Wizard Tests");
+  spdlog::info("================");
 
-  std::cout << "UUID:\n";
+  spdlog::info("UUID:");
   TEST(test_uuid_format);
   TEST(test_uuid_bare_format);
   TEST(test_uuid_uniqueness);
 
-  std::cout << "\nHash:\n";
+  spdlog::info("Hash:");
   TEST(test_sha1_base64);
 
-  std::cout << "\n" << tests_passed << "/" << tests_run << " tests passed\n";
+  spdlog::info("{}/{} tests passed", tests_passed, tests_run);
   return (tests_passed == tests_run) ? 0 : 1;
 }
