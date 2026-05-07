@@ -113,14 +113,15 @@ if(BUILD_TESTING)
     target_link_libraries(imfwizard_job_queue_test PRIVATE imfwizard_core)
     add_test(NAME imfwizard_job_queue_test COMMAND imfwizard_job_queue_test)
 
-    # CLI integration tests (bash)
+    # CLI integration tests (Python)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_test(NAME imfwizard_cli_test
-        COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_cli.sh
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_cli.py
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
-    # GUI launch/exit tests (bash, optional)
+    # GUI launch/exit tests (Python, optional)
     add_test(NAME imfwizard_gui_test
-        COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_gui.sh)
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_gui.py)
 
     # job_queue_test and cli_test both use /tmp/imfwizard.sock — serialize them
     set_tests_properties(imfwizard_job_queue_test imfwizard_cli_test
