@@ -45,6 +45,10 @@
 #include "imfwizard/multi_node.h"
 #include "imfwizard/kdm_gen.h"
 #include "imfwizard/mxf_playback.h"
+#include "imfwizard/webhook.h"
+#include "imfwizard/shell_completion.h"
+#include "imfwizard/schema_validate.h"
+#include "imfwizard/pdf_report.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <cinttypes>
@@ -636,6 +640,47 @@ int main(int argc, char* argv[])
   mxfplay_cmd->add_flag("--thumbnails", mxfplay_thumbs, "Generate thumbnail images");
   mxfplay_cmd->add_option("--thumb-dir", mxfplay_thumbdir, "Thumbnail output directory");
   mxfplay_cmd->add_option("--thumb-interval", mxfplay_interval, "Thumbnail every N frames")->default_val(24);
+
+  // === Webhook subcommand ===
+  auto* webhook_cmd = app.add_subcommand("webhook", "Send or test webhook notifications");
+  std::string webhook_url, webhook_secret, webhook_event = "ping", webhook_payload;
+  uint32_t webhook_timeout = 10, webhook_retries = 3;
+  bool webhook_test = false, webhook_no_ssl = false;
+  webhook_cmd->add_option("--url", webhook_url, "Webhook POST endpoint URL")->required();
+  webhook_cmd->add_option("--secret", webhook_secret, "HMAC signing secret");
+  webhook_cmd->add_option("--event", webhook_event, "Event type")->default_val("ping");
+  webhook_cmd->add_option("--payload", webhook_payload, "JSON payload string");
+  webhook_cmd->add_option("--timeout", webhook_timeout, "Timeout in seconds")->default_val(10);
+  webhook_cmd->add_option("--retries", webhook_retries, "Max retry attempts")->default_val(3);
+  webhook_cmd->add_flag("--test", webhook_test, "Send a test ping event");
+  webhook_cmd->add_flag("--no-verify-ssl", webhook_no_ssl, "Disable SSL verification");
+
+  // === Completions subcommand ===
+  auto* completions_cmd = app.add_subcommand("completions", "Generate shell tab-completion scripts");
+  bool comp_bash = false, comp_zsh = false, comp_fish = false, comp_install = false;
+  completions_cmd->add_flag("--bash", comp_bash, "Generate bash completion");
+  completions_cmd->add_flag("--zsh", comp_zsh, "Generate zsh completion");
+  completions_cmd->add_flag("--fish", comp_fish, "Generate fish completion");
+  completions_cmd->add_flag("--install", comp_install, "Show installation instructions");
+
+  // === Schema-validate subcommand ===
+  auto* schemaval_cmd = app.add_subcommand("schema-validate", "Validate IMP XML against SMPTE XSD schemas");
+  std::string schemaval_imp, schemaval_schema_dir;
+  bool schemaval_strict = false, schemaval_no_cpl = false, schemaval_no_pkl = false, schemaval_no_am = false;
+  schemaval_cmd->add_option("--input,-i", schemaval_imp, "IMP directory")->required();
+  schemaval_cmd->add_option("--schema-dir", schemaval_schema_dir, "Directory containing XSD files");
+  schemaval_cmd->add_flag("--strict", schemaval_strict, "Treat warnings as errors");
+  schemaval_cmd->add_flag("--no-cpl", schemaval_no_cpl, "Skip CPL validation");
+  schemaval_cmd->add_flag("--no-pkl", schemaval_no_pkl, "Skip PKL validation");
+  schemaval_cmd->add_flag("--no-assetmap", schemaval_no_am, "Skip AssetMap validation");
+
+  // === PDF report subcommand ===
+  auto* pdfreport_cmd = app.add_subcommand("pdf-report", "Generate PDF QC report for an IMP");
+  std::string pdfreport_imp, pdfreport_output, pdfreport_title, pdfreport_author = "IMF Wizard";
+  pdfreport_cmd->add_option("--input,-i", pdfreport_imp, "IMP directory")->required();
+  pdfreport_cmd->add_option("--output,-o", pdfreport_output, "Output PDF path");
+  pdfreport_cmd->add_option("--title", pdfreport_title, "Report title");
+  pdfreport_cmd->add_option("--author", pdfreport_author, "Report author")->default_val("IMF Wizard");
 
   CLI11_PARSE(app, argc, argv);
 
@@ -1905,6 +1950,121 @@ int main(int argc, char* argv[])
     opts.end_frame = mxfplay_end;
     imfwizard::launch_playback(opts);
     return 0;
+  }
+
+  // === Webhook handler ===
+  if(webhook_cmd->parsed())
+  {
+    imfwizard::WebhookConfig config;
+    config.url = webhook_url;
+    config.secret = webhook_secret;
+    config.timeout_seconds = webhook_timeout;
+    config.max_retries = webhook_retries;
+    config.verify_ssl = !webhook_no_ssl;
+
+    if(webhook_test)
+    {
+      auto result = imfwizard::test_webhook(config);
+      if(result.success)
+      {
+        std::cout << "Webhook test successful (HTTP " << result.http_status << ")\n";
+        return 0;
+      }
+      std::cerr << "Webhook test failed: " << result.error << "\n";
+      return 1;
+    }
+
+    imfwizard::WebhookEvent event;
+    event.type = webhook_event;
+    event.payload_json = webhook_payload.empty() ? "{}" : webhook_payload;
+    auto result = imfwizard::send_webhook(config, event);
+    if(result.success)
+    {
+      std::cout << "Webhook sent (HTTP " << result.http_status << ", "
+                << result.attempts << " attempt(s))\n";
+      return 0;
+    }
+    std::cerr << "Webhook failed: " << result.error << "\n";
+    return 1;
+  }
+
+  // === Completions handler ===
+  if(completions_cmd->parsed())
+  {
+    imfwizard::ShellType shell;
+    if(comp_bash)
+      shell = imfwizard::ShellType::bash;
+    else if(comp_zsh)
+      shell = imfwizard::ShellType::zsh;
+    else if(comp_fish)
+      shell = imfwizard::ShellType::fish;
+    else
+      shell = imfwizard::detect_shell();
+
+    if(comp_install)
+    {
+      std::cout << imfwizard::completion_install_instructions(shell);
+      return 0;
+    }
+
+    std::cout << imfwizard::generate_completion_script(shell);
+    return 0;
+  }
+
+  // === Schema-validate handler ===
+  if(schemaval_cmd->parsed())
+  {
+    imfwizard::SchemaValidateOptions opts;
+    opts.imp_dir = schemaval_imp;
+    opts.schema_dir = schemaval_schema_dir;
+    opts.strict = schemaval_strict;
+    opts.validate_cpl = !schemaval_no_cpl;
+    opts.validate_pkl = !schemaval_no_pkl;
+    opts.validate_assetmap = !schemaval_no_am;
+
+    auto result = imfwizard::validate_against_schema(opts);
+    for(const auto& err : result.errors)
+    {
+      std::string prefix = err.is_warning ? "WARNING" : "ERROR";
+      std::cerr << prefix << ": " << err.file << ":" << err.line << ": " << err.message << "\n";
+    }
+    if(!result.schema_version.empty())
+      std::cout << "Schema: " << result.schema_version << "\n";
+    std::cout << (result.valid ? "PASS" : "FAIL") << " (" << result.errors.size() << " issue(s))\n";
+    return result.valid ? 0 : 1;
+  }
+
+  // === PDF report handler ===
+  if(pdfreport_cmd->parsed())
+  {
+    if(!imfwizard::pdf_renderer_available())
+    {
+      std::cerr << "Error: No PDF renderer found.\n"
+                << "Install wkhtmltopdf or weasyprint:\n"
+                << "  apt install wkhtmltopdf   # Debian/Ubuntu\n"
+                << "  brew install wkhtmltopdf   # macOS\n"
+                << "  pip install weasyprint     # Python\n";
+      return 1;
+    }
+
+    // Run validation first for the report
+    auto validation = imfwizard::validate_with_photon(pdfreport_imp);
+
+    imfwizard::PdfReportOptions opts;
+    opts.imp_dir = pdfreport_imp;
+    opts.output_path = pdfreport_output;
+    opts.validation = validation;
+    opts.title = pdfreport_title;
+    opts.author = pdfreport_author;
+
+    auto result = imfwizard::generate_pdf_report(opts);
+    if(result.success)
+    {
+      std::cout << "PDF report: " << result.output_path.string() << "\n";
+      return 0;
+    }
+    std::cerr << "Error: " << result.error << "\n";
+    return 1;
   }
 
   return 0;

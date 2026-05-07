@@ -609,6 +609,26 @@
             <h3>SDI Output (Blackmagic DeckLink)</h3>
             <p>Play J2K frames over HD-SDI to reference monitors via GStreamer + decklinkvideosink. Supports 1080p, 2K, and UHD.</p>
         </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(251,146,60,0.15);">🔔</div>
+            <h3>Webhook Notifications</h3>
+            <p>POST to external endpoints on job completion or failure. Integrates with Slack, Teams, and CI/CD pipelines.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(34,211,238,0.15);">⌨️</div>
+            <h3>Shell Tab Completion</h3>
+            <p>Generate completion scripts for bash, zsh, and fish. Auto-complete 52 subcommands and flags.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(167,139,250,0.15);">📄</div>
+            <h3>XSD Schema Validation</h3>
+            <p>Validate CPL, PKL, and AssetMap XML against SMPTE ST 2067 XSD schemas via xmllint.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(248,113,113,0.15);">📑</div>
+            <h3>PDF QC Reports</h3>
+            <p>Generate print-ready PDF quality control reports using wkhtmltopdf or weasyprint.</p>
+        </div>
     </div>
 </section>
 
@@ -625,6 +645,9 @@
         <div class="prereq"><span class="tag optional">Optional</span><span>ffmpeg / ffprobe (transcode, loudness)</span></div>
         <div class="prereq"><span class="tag optional">Optional</span><span>Java + Netflix Photon (validation)</span></div>
         <div class="prereq"><span class="tag optional">Optional</span><span>Node.js + Rust (GUI build)</span></div>
+        <div class="prereq"><span class="tag optional">Optional</span><span>xmllint / libxml2-utils (XSD schema validation)</span></div>
+        <div class="prereq"><span class="tag optional">Optional</span><span>wkhtmltopdf or weasyprint (PDF reports)</span></div>
+        <div class="prereq"><span class="tag optional">Optional</span><span>curl (webhook notifications)</span></div>
     </div>
 
     <h3 style="color: var(--text-primary); margin: 2rem 0 1rem;">Build Steps</h3>

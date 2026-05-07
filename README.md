@@ -37,10 +37,12 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 ### Quality Control
 - **Loudness analysis** — EBU R128 / ATSC A/85 measurement and normalization
 - **Photon validation** — validate output IMPs using Netflix Photon
+- **Native XSD schema validation** — validate CPL/PKL/AssetMap XML against SMPTE ST 2067 XSD schemas (via xmllint)
 - **Frame-level QC** — per-frame bitrate analysis with over/under-budget detection
 - **VMAF / PSNR / SSIM** quality metrics (via ffmpeg libvmaf)
 - **Bitrate analytics** — per-second throughput, histogram, standard deviation (JSON output for dashboards)
 - **QC HTML report** generation
+- **PDF QC report** — generate PDF QC reports using wkhtmltopdf or weasyprint
 - **Frame-accurate comparison** — PSNR/SSIM comparison between two IMPs with diff report
 - **Platform compliance checking** — validate against Netflix, Disney+, Amazon, Apple, Cinema, Broadcast specs
 - **Detailed QC report** — HTML report with package info, track listing, loudness, thumbnails
@@ -64,6 +66,7 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 
 ### Integration & Extensibility
 - **REST API server** — HTTP interface for /create, /validate, /encode, /transcode, /jobs
+- **Webhook notifications** — POST to external endpoints on job completion/failure (Slack, Teams, CI/CD)
 - **EDL/FCP XML import** — parse CMX 3600 EDL and Final Cut Pro XML timelines
 - **Plugin system** — discover and execute Python plugin scripts with pre/post hooks
 - **SDI output (Blackmagic DeckLink)** — play J2K frames over HD-SDI via GStreamer decklinkvideosink
@@ -89,6 +92,7 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **KDM generation** — generate SMPTE 430-1 Key Delivery Messages for encrypted DCP
 - **Dolby Vision Profile 8.1** — HDR10-compatible single-layer DV (MEL/FEL mapping, profile 4→8.1 conversion)
 - **Prometheus metrics** — `/metrics` endpoint on REST API for monitoring (jobs, frames, bytes, uptime)
+- **Shell tab completion** — bash, zsh, and fish completion scripts (`imfwizard completions --bash`)
 
 ### Desktop GUI (Tauri 2)
 - **Dark theme** by default with optional light mode toggle

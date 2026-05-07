@@ -100,7 +100,11 @@ add_library(imfwizard_core STATIC
     src/otioz_import.cpp
     src/multi_node.cpp
     src/kdm_gen.cpp
-    src/mxf_playback.cpp)
+    src/mxf_playback.cpp
+    src/webhook.cpp
+    src/shell_completion.cpp
+    src/schema_validate.cpp
+    src/pdf_report.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include
