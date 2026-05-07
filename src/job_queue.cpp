@@ -74,16 +74,26 @@ JobState job_state_from_string(const std::string& s)
 
 std::filesystem::path jobs_file_path()
 {
+#ifdef _WIN32
+  const char* appdata = std::getenv("LOCALAPPDATA");
+  if(!appdata) appdata = "C:\\Temp";
+  auto dir = std::filesystem::path(appdata) / "imfwizard";
+#else
   const char* home = std::getenv("HOME");
   if(!home) home = "/tmp";
   auto dir = std::filesystem::path(home) / ".config" / "imfwizard";
+#endif
   std::filesystem::create_directories(dir);
   return dir / "jobs.json";
 }
 
 std::filesystem::path socket_path()
 {
+#ifdef _WIN32
+  return std::filesystem::path("\\\\.\\pipe\\imfwizard");
+#else
   return std::filesystem::path("/tmp") / "imfwizard.sock";
+#endif
 }
 
 // Simple JSON serialization (no external dependency)

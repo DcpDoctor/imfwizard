@@ -4,11 +4,14 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
-#include <signal.h>
 #include <string>
-#include <sys/wait.h>
 #include <thread>
+
+#ifndef _WIN32
+#include <signal.h>
+#include <sys/wait.h>
 #include <unistd.h>
+#endif
 
 namespace fs = std::filesystem;
 using namespace imfwizard;
@@ -112,6 +115,7 @@ void test_client_no_daemon()
   ASSERT(client.submit(JobType::Transcode, "test", {}) == std::nullopt);
 }
 
+#ifndef _WIN32
 // --- Daemon lifecycle (fork, communicate, kill) ---
 
 static pid_t daemon_pid = -1;
@@ -248,6 +252,7 @@ void test_pause_resume()
 
   stop_test_daemon();
 }
+#endif // _WIN32
 
 int main()
 {
@@ -267,12 +272,14 @@ int main()
   std::cout << "\nClient (no daemon):\n";
   TEST(test_client_no_daemon);
 
+#ifndef _WIN32
   std::cout << "\nDaemon lifecycle:\n";
   TEST(test_daemon_start_stop);
   TEST(test_submit_and_list);
   TEST(test_cancel_job);
   TEST(test_priority);
   TEST(test_pause_resume);
+#endif
 
   std::cout << "\n" << tests_passed << "/" << tests_run << " tests passed\n";
   return (tests_passed == tests_run) ? 0 : 1;

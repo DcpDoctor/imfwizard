@@ -19,6 +19,7 @@
 #include "imfwizard/job_queue.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
+#include <cinttypes>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -708,7 +709,7 @@ int main(int argc, char* argv[])
       for(auto& j : jobs)
       {
         char line[256];
-        snprintf(line, sizeof(line), "%-3lu %-10s %5.0f%%    %-10s %s\n",
+        snprintf(line, sizeof(line), "%-3" PRIu64 " %-10s %5.0f%%    %-10s %s\n",
                  j.id, imfwizard::job_state_to_string(j.state).c_str(),
                  j.progress, imfwizard::job_type_to_string(j.type).c_str(),
                  j.description.c_str());
