@@ -1,4 +1,5 @@
 #include "imfwizard/sdi_output.h"
+#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 
 #include <cstdio>
@@ -24,7 +25,7 @@ std::vector<SdiDevice> list_sdi_devices()
   std::vector<SdiDevice> devices;
 
   // Use gst-device-monitor to list DeckLink devices
-  FILE* fp = popen("gst-device-monitor-1.0 Video/Sink 2>/dev/null", "r");
+  FILE* fp = portable_popen("gst-device-monitor-1.0 Video/Sink 2>/dev/null", "r");
   if(!fp)
     return devices;
 
@@ -32,7 +33,7 @@ std::vector<SdiDevice> list_sdi_devices()
   std::string output;
   while(fgets(buf, sizeof(buf), fp))
     output += buf;
-  pclose(fp);
+  portable_pclose(fp);
 
   // Parse device names from gst-device-monitor output
   // Format: "Device found:\n  name  : DeckLink ...\n  class : Video/Sink"

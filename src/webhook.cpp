@@ -1,4 +1,5 @@
 #include "imfwizard/webhook.h"
+#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 #include <array>
 #include <chrono>
@@ -7,6 +8,7 @@
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
@@ -106,7 +108,7 @@ WebhookResult send_webhook(const WebhookConfig& config, const WebhookEvent& even
 
     std::array<char, 16> buf{};
     std::string http_code;
-    FILE* pipe = popen(full_cmd.c_str(), "r");
+    FILE* pipe = portable_popen(full_cmd.c_str(), "r");
     if(!pipe)
     {
       result.error = "Failed to execute curl";
@@ -114,7 +116,7 @@ WebhookResult send_webhook(const WebhookConfig& config, const WebhookEvent& even
     }
     while(fgets(buf.data(), static_cast<int>(buf.size()), pipe))
       http_code += buf.data();
-    int ret = pclose(pipe);
+    int ret = portable_pclose(pipe);
 
     if(ret == 0 && !http_code.empty())
     {

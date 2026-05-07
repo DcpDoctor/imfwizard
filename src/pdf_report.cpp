@@ -1,5 +1,6 @@
 #include "imfwizard/pdf_report.h"
 #include "imfwizard/report.h"
+#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 #include <array>
 #include <cstdio>
@@ -89,7 +90,7 @@ PdfReportResult generate_pdf_report(const PdfReportOptions& opts)
 
   std::array<char, 4096> buf{};
   std::string cmd_output;
-  FILE* pipe = popen(cmd.str().c_str(), "r");
+  FILE* pipe = portable_popen(cmd.str().c_str(), "r");
   if(!pipe)
   {
     result.error = "Failed to execute PDF renderer";
@@ -98,7 +99,7 @@ PdfReportResult generate_pdf_report(const PdfReportOptions& opts)
   }
   while(fgets(buf.data(), static_cast<int>(buf.size()), pipe))
     cmd_output += buf.data();
-  int ret = pclose(pipe);
+  int ret = portable_pclose(pipe);
 
   fs::remove(tmp_html);
 

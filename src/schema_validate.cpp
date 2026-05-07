@@ -1,5 +1,7 @@
 #include "imfwizard/schema_validate.h"
+#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
+#include <array>
 #include <fstream>
 #include <regex>
 #include <sstream>
@@ -105,7 +107,7 @@ SchemaValidationResult validate_xml_file(const fs::path& xml_file, const fs::pat
 
   std::array<char, 4096> buf{};
   std::string output;
-  FILE* pipe = popen(cmd.str().c_str(), "r");
+  FILE* pipe = portable_popen(cmd.str().c_str(), "r");
   if(!pipe)
   {
     SchemaError err;
@@ -115,7 +117,7 @@ SchemaValidationResult validate_xml_file(const fs::path& xml_file, const fs::pat
   }
   while(fgets(buf.data(), static_cast<int>(buf.size()), pipe))
     output += buf.data();
-  int ret = pclose(pipe);
+  int ret = portable_pclose(pipe);
 
   result.errors = parse_xmllint_output(output);
 
@@ -211,12 +213,12 @@ SchemaValidationResult validate_against_schema(const SchemaValidateOptions& opts
         cmd << "xmllint --noout " << cpl.string() << " 2>&1";
         std::array<char, 4096> buf{};
         std::string output;
-        FILE* pipe = popen(cmd.str().c_str(), "r");
+        FILE* pipe = portable_popen(cmd.str().c_str(), "r");
         if(pipe)
         {
           while(fgets(buf.data(), static_cast<int>(buf.size()), pipe))
             output += buf.data();
-          int ret = pclose(pipe);
+          int ret = portable_pclose(pipe);
           if(ret != 0)
           {
             all_valid = false;
