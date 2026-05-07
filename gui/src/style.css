@@ -1,21 +1,25 @@
 :root {
-  --bg: #1a1a2e;
-  --surface: #16213e;
-  --primary: #0f3460;
+  --bg: #121218;
+  --surface: #1c1c28;
+  --surface-hover: #252535;
+  --primary: #2d4a7a;
   --accent: #e94560;
   --text: #eaeaea;
-  --text-muted: #a0a0a0;
-  --border: #2a2a4a;
+  --text-muted: #9a9ab0;
+  --border: #2e2e42;
+  color-scheme: dark;
 }
 
 body.light-theme {
   --bg: #f5f5f5;
   --surface: #ffffff;
+  --surface-hover: #eaeaea;
   --primary: #1a73e8;
   --accent: #d93025;
   --text: #202124;
   --text-muted: #5f6368;
   --border: #dadce0;
+  color-scheme: light;
 }
 
 * {
@@ -29,6 +33,7 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
 #app {
@@ -58,6 +63,11 @@ header h1 {
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.light-theme .panel {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .panel h2 {
@@ -85,11 +95,25 @@ header h1 {
   background: var(--bg);
   color: var(--text);
   font-size: 0.95rem;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239a9ab0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
 }
 
 .field select option {
-  background: var(--surface);
-  color: var(--text);
+  background: #1c1c28;
+  color: #eaeaea;
+}
+
+body.light-theme .field select option {
+  background: #ffffff;
+  color: #202124;
 }
 
 .field button {
@@ -104,6 +128,13 @@ header h1 {
 
 .field button:hover {
   background: var(--accent);
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.2);
 }
 
 .path-display {
