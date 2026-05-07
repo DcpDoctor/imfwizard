@@ -1,12 +1,15 @@
 // Preview player - decodes J2K frames for playback using CLI sidecar
-import { invoke } from '@tauri-apps/api/core';
+import { Command } from '@tauri-apps/plugin-shell';
 import { open } from '@tauri-apps/plugin-dialog';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
-let frames = [];
+let framePaths = [];
 let currentFrame = 0;
 let playing = false;
 let playInterval = null;
 let fps = 24;
+let sourceDir = '';
+let thumbDir = '';
 
 const canvas = document.getElementById('preview-canvas');
 const ctx = canvas?.getContext('2d');
@@ -39,68 +42,120 @@ export function initPreview() {
       if (e.key === ' ') { e.preventDefault(); togglePlay(); }
       if (e.key === 'ArrowLeft') seekFrame(currentFrame - 1);
       if (e.key === 'ArrowRight') seekFrame(currentFrame + 1);
+      if (e.key === 'Home') seekFrame(0);
+      if (e.key === 'End') seekFrame(framePaths.length - 1);
     }
   });
 }
 
 async function loadFrames(dir) {
-  // Use imfwizard CLI to list and decode frames
+  sourceDir = dir;
+
+  // List J2K files in the directory using the sidecar
   try {
-    const result = await invoke('list_j2k_frames', { dir });
-    frames = result.frames || [];
+    const result = await Command.sidecar('imfwizard', [
+      'preview', '-d', dir, '-o', '/tmp/imfwizard_preview', '--strip',
+      '-n', '1', '-w', '1920'
+    ]).execute();
+
+    // Parse frame count from output (e.g. "Generated 1 thumbnails from 32 frames")
+    const match = result.stdout?.match(/from (\d+) frames/);
+    const total = match ? parseInt(match[1]) : 0;
+
+    if (total === 0) {
+      // Fallback: just count files by listing directory
+      const lsResult = await Command.sidecar('imfwizard', ['info', dir]).execute();
+      console.warn('Could not determine frame count from preview output');
+      return;
+    }
+
+    // Build frame path list by scanning the directory for J2K files
+    framePaths = [];
+    for (let i = 0; i < total; i++) {
+      framePaths.push(i);
+    }
+
+    thumbDir = '/tmp/imfwizard_preview';
+
     const scrub = document.getElementById('prev-scrub');
     if (scrub) {
-      scrub.max = Math.max(0, frames.length - 1).toString();
+      scrub.max = Math.max(0, total - 1).toString();
       scrub.value = '0';
     }
     document.getElementById('prev-frame-num').textContent =
-      `Frame: 0 / ${frames.length}`;
+      `Frame: 0 / ${total}`;
 
-    if (frames.length > 0) {
+    // Display first frame
+    if (total > 0) {
       await displayFrame(0);
       drawWaveform();
     }
   } catch (e) {
-    // Fallback: list directory contents via shell
-    console.error('Frame listing failed:', e);
+    console.error('Failed to load frames:', e);
+    if (ctx) {
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#f85149';
+      ctx.font = '20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Failed to load frames: ' + (e.message || e), canvas.width / 2, canvas.height / 2);
+    }
   }
 }
 
 async function displayFrame(index) {
-  if (index < 0 || index >= frames.length) return;
+  if (index < 0 || index >= framePaths.length) return;
   currentFrame = index;
 
   try {
-    // Decode J2K frame to raw RGB via CLI
-    const result = await invoke('decode_j2k_frame', { path: frames[index] });
-    if (result.width && result.height && result.data) {
-      canvas.width = result.width;
-      canvas.height = result.height;
-      const imageData = new ImageData(
-        new Uint8ClampedArray(result.data),
-        result.width,
-        result.height
-      );
-      ctx.putImageData(imageData, 0, 0);
-    }
+    // Decode the specific frame to PNG via sidecar
+    const result = await Command.sidecar('imfwizard', [
+      'preview', '-d', sourceDir, '-o', thumbDir,
+      '-f', index.toString(), '-w', '1920'
+    ]).execute();
+
+    // Load the generated PNG into canvas
+    const pngPath = `${thumbDir}/thumb_${index}.png`;
+    const fullPngPath = `${thumbDir}/preview_${index}.png`;
+
+    // Try the full-res decode first, fall back to thumbnail
+    await loadImageToCanvas(fullPngPath) || await loadImageToCanvas(pngPath);
+
   } catch (e) {
-    // Draw placeholder
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#ccc';
-    ctx.font = '24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`Frame ${index} (decode unavailable)`, canvas.width / 2, canvas.height / 2);
+    console.error('Frame decode failed:', e);
+    if (ctx) {
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#aaa';
+      ctx.font = '18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Frame ${index} — decoding...`, canvas.width / 2, canvas.height / 2);
+    }
   }
 
   document.getElementById('prev-frame-num').textContent =
-    `Frame: ${index} / ${frames.length}`;
+    `Frame: ${index} / ${framePaths.length}`;
   const scrub = document.getElementById('prev-scrub');
   if (scrub) scrub.value = index.toString();
+  drawPlayhead();
+}
+
+function loadImageToCanvas(filePath) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.drawImage(img, 0, 0);
+      resolve(true);
+    };
+    img.onerror = () => resolve(false);
+    img.src = convertFileSrc(filePath);
+  });
 }
 
 function seekFrame(index) {
-  index = Math.max(0, Math.min(frames.length - 1, index));
+  index = Math.max(0, Math.min(framePaths.length - 1, index));
   displayFrame(index);
 }
 
@@ -111,7 +166,7 @@ function togglePlay() {
   if (playing) {
     btn.textContent = '⏸';
     playInterval = setInterval(() => {
-      if (currentFrame >= frames.length - 1) {
+      if (currentFrame >= framePaths.length - 1) {
         togglePlay(); // Stop at end
         return;
       }
@@ -130,21 +185,18 @@ function drawWaveform() {
   const w = waveCanvas.width;
   const h = waveCanvas.height;
 
-  // Draw bitrate waveform (frame sizes)
   waveCtx.fillStyle = '#0d1117';
   waveCtx.fillRect(0, 0, w, h);
 
-  if (frames.length === 0) return;
+  if (framePaths.length === 0) return;
 
-  // Simulated waveform based on frame count
   waveCtx.strokeStyle = '#58a6ff';
   waveCtx.lineWidth = 1;
   waveCtx.beginPath();
 
-  const step = w / frames.length;
-  for (let i = 0; i < frames.length; i++) {
+  const step = w / framePaths.length;
+  for (let i = 0; i < framePaths.length; i++) {
     const x = i * step;
-    // Random-ish waveform for now (real impl would read frame sizes)
     const y = h / 2 + Math.sin(i * 0.1) * (h * 0.3);
     if (i === 0) waveCtx.moveTo(x, y);
     else waveCtx.lineTo(x, y);
@@ -156,11 +208,11 @@ function drawWaveform() {
 }
 
 function drawPlayhead() {
-  if (!waveCtx || !waveCanvas || frames.length === 0) return;
+  if (!waveCtx || !waveCanvas || framePaths.length === 0) return;
 
   const w = waveCanvas.width;
   const h = waveCanvas.height;
-  const x = (currentFrame / frames.length) * w;
+  const x = (currentFrame / framePaths.length) * w;
 
   waveCtx.strokeStyle = '#f85149';
   waveCtx.lineWidth = 2;
