@@ -1,5 +1,6 @@
 #include "imfwizard/imp.h"
 #include "imfwizard/mxf_wrap.h"
+#include "imfwizard/timed_text.h"
 #include "imfwizard/cpl.h"
 #include "imfwizard/pkl.h"
 #include "imfwizard/assetmap.h"
@@ -46,6 +47,26 @@ ImpResult create_ov_imp(const ImpOptions& opts)
             MxfTrackFile audio_track = wrap_essence(audio_opts);
             audio_tracks.push_back(audio_track);
             result.track_files.push_back(audio_track);
+        }
+
+        // Wrap subtitle (if provided)
+        if (!opts.subtitle_file.empty() && std::filesystem::exists(opts.subtitle_file)) {
+            TimedTextOptions tt_opts;
+            tt_opts.ttml_file = opts.subtitle_file;
+            tt_opts.output_path = opts.output_dir / ("SUB_" + generate_uuid_bare() + ".mxf");
+            tt_opts.edit_rate_num = opts.edit_rate_num;
+            tt_opts.edit_rate_den = opts.edit_rate_den;
+
+            spdlog::info("Wrapping subtitle...");
+            TimedTextTrackFile sub_track = wrap_timed_text(tt_opts);
+            // Add as a generic track file for PKL/AssetMap
+            MxfTrackFile sub_mxf;
+            sub_mxf.path = sub_track.path;
+            sub_mxf.uuid = sub_track.uuid;
+            sub_mxf.hash = sub_track.hash;
+            sub_mxf.size = sub_track.size;
+            sub_mxf.duration = sub_track.duration;
+            result.track_files.push_back(sub_mxf);
         }
 
         // Generate CPL

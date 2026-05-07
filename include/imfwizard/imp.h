@@ -19,6 +19,7 @@ struct ImpOptions {
     // Input essence
     std::filesystem::path video_dir;   // directory of J2K codestreams
     std::filesystem::path audio_file;  // WAV file
+    std::filesystem::path subtitle_file; // TTML/IMSC file (optional)
 
     // Timing
     uint32_t edit_rate_num = 24;

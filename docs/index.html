@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMF Wizard &mdash; Open Source IMF Package Creator</title>
+    <meta name="description" content="Open-source Interoperable Master Format (IMF) package creator. Create App#2E IMPs from JPEG 2000 and WAV. CLI tool and desktop GUI.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0D0D0D;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1A1A1A;
+            --bg-card: #1E1E1E;
+            --bg-card-hover: #252525;
+            --border: #2A2A2A;
+            --border-hover: #3A3A3A;
+            --accent: #A78BFA;
+            --accent-dim: rgba(167, 139, 250, 0.15);
+            --accent-glow: rgba(167, 139, 250, 0.3);
+            --blue: #38BDF8;
+            --cyan: #22D3EE;
+            --amber: #FBBF24;
+            --rose: #FB7185;
+            --green: #4ADE80;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A1A1AA;
+            --text-tertiary: #71717A;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            background: rgba(13, 13, 13, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-inner {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            height: 64px;
+        }
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1.15rem;
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            list-style: none;
+        }
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 8px 14px;
+            border-radius: 8px;
+            transition: all 0.15s;
+        }
+        .nav-links a:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+
+        .hero {
+            padding: 160px 32px 100px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            color: var(--text-primary);
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+        }
+        .hero h1 span {
+            background: linear-gradient(135deg, var(--accent), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto 2.5rem;
+            color: var(--text-secondary);
+        }
+        .hero-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #7C3AED, var(--accent));
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--accent-glow); }
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
+
+        .section {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 80px 32px;
+        }
+        .section-title {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 3rem;
+            max-width: 600px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            transition: all 0.2s;
+        }
+        .feature-card:hover {
+            border-color: var(--border-hover);
+            background: var(--bg-card-hover);
+            transform: translateY(-2px);
+        }
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            font-size: 1.3rem;
+        }
+        .feature-card h3 {
+            color: var(--text-primary);
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .feature-card p {
+            color: var(--text-tertiary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .code-block {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 2rem 0;
+            overflow-x: auto;
+        }
+        .code-block code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+        .code-block .cmd { color: var(--green); }
+        .code-block .flag { color: var(--amber); }
+        .code-block .val { color: var(--cyan); }
+
+        .roadmap {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+        .roadmap-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .roadmap-item .phase {
+            color: var(--accent);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .roadmap-item h4 {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .roadmap-item p {
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+        }
+        .roadmap-item.active { border-color: var(--accent); }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 40px 32px;
+            text-align: center;
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hero { padding: 120px 20px 60px; }
+            .section { padding: 60px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-inner">
+        <a href="#" class="nav-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+            IMF Wizard
+        </a>
+        <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#usage">Usage</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
+            <li><a href="https://github.com/DcpDoctor/imfwizard">GitHub</a></li>
+        </ul>
+    </div>
+</nav>
+
+<section class="hero">
+    <h1>Create IMF Packages<br>with <span>IMF Wizard</span></h1>
+    <p>Open-source CLI tool and desktop GUI for creating standards-compliant Interoperable Master Format packages.</p>
+    <div class="hero-buttons">
+        <a href="https://github.com/DcpDoctor/imfwizard" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            View on GitHub
+        </a>
+        <a href="#usage" class="btn btn-secondary">Quick Start</a>
+    </div>
+</section>
+
+<section class="section" id="features">
+    <h2 class="section-title">Features</h2>
+    <p class="section-subtitle">Standards-compliant IMF package creation, from essence to delivery.</p>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(167,139,250,0.15);">📦</div>
+            <h3>AS-02 MXF Wrapping</h3>
+            <p>Wrap JPEG 2000 codestreams and PCM audio into SMPTE 2067-5 compliant MXF track files.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(34,211,238,0.15);">📋</div>
+            <h3>CPL Generation</h3>
+            <p>Generate Composition Playlists conforming to ST 2067-3 with proper segment and sequence structures.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(251,191,36,0.15);">🔐</div>
+            <h3>Hash &amp; Signing</h3>
+            <p>SHA-1 hash computation for all assets with optional XML-DSIG signing for secure delivery.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(74,222,128,0.15);">🖥️</div>
+            <h3>Desktop GUI</h3>
+            <p>Tauri-based desktop application with drag-and-drop media import and visual timeline editing.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(251,113,133,0.15);">⚡</div>
+            <h3>Fast CLI</h3>
+            <p>High-performance C++23 command-line tool for scripting and pipeline integration.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(56,189,248,0.15);">🌐</div>
+            <h3>Cross-Platform</h3>
+            <p>Build and run on Linux, macOS, and Windows with full CI across all platforms.</p>
+        </div>
+    </div>
+</section>
+
+<section class="section" id="usage">
+    <h2 class="section-title">Quick Start</h2>
+    <p class="section-subtitle">Create your first IMP in minutes.</p>
+
+    <div class="code-block">
+        <code>
+<span class="cmd">$</span> git clone <span class="flag">--recurse-submodules</span> <span class="val">https://github.com/DcpDoctor/imfwizard.git</span><br>
+<span class="cmd">$</span> cd imfwizard && mkdir build && cd build<br>
+<span class="cmd">$</span> cmake .. <span class="flag">-DCMAKE_BUILD_TYPE=Release</span><br>
+<span class="cmd">$</span> make <span class="flag">-j$(nproc)</span><br>
+<br>
+<span class="cmd">$</span> ./imfwizard create \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--title</span> <span class="val">"My Feature Film"</span> \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--video</span> <span class="val">/path/to/j2k_frames/</span> \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--audio</span> <span class="val">/path/to/audio.wav</span> \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--output</span> <span class="val">/path/to/output_imp/</span>
+        </code>
+    </div>
+</section>
+
+<section class="section" id="roadmap">
+    <h2 class="section-title">Roadmap</h2>
+    <p class="section-subtitle">Building towards a complete IMF workflow.</p>
+
+    <div class="roadmap">
+        <div class="roadmap-item active">
+            <div class="phase">Phase 1 — Current</div>
+            <h4>OV Creator</h4>
+            <p>J2K + WAV → AS-02 MXF track files, CPL, PKL, AssetMap. Valid App#2E Original Version IMP.</p>
+        </div>
+        <div class="roadmap-item">
+            <div class="phase">Phase 2</div>
+            <h4>Supplemental IMP</h4>
+            <p>Create supplemental versions referencing OV track files. Partial PKL/AssetMap generation.</p>
+        </div>
+        <div class="roadmap-item">
+            <div class="phase">Phase 3</div>
+            <h4>Encoding Pipeline</h4>
+            <p>Accept TIFF/EXR/DPX image sequences. Encode to J2K via grok. Optional ACES (App#5) support.</p>
+        </div>
+        <div class="roadmap-item">
+            <div class="phase">Phase 4</div>
+            <h4>Full GUI</h4>
+            <p>Timeline editor, drag-drop media import, supplemental creation workflow, validation integration.</p>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <p>IMF Wizard is open source under the <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> license. Built by <a href="https://github.com/DcpDoctor">DcpDoctor</a>.</p>
+</footer>
+
+</body>
+</html>

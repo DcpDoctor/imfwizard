@@ -9,4 +9,5 @@
 #include "imfwizard/hash.h"
 #include "imfwizard/signature.h"
 #include "imfwizard/imp.h"
+#include "imfwizard/timed_text.h"
 #include "imfwizard/uuid.h"

@@ -40,6 +40,9 @@ add_library(imfwizard_core STATIC
     src/hash.cpp
     src/signature.cpp
     src/imp.cpp
+    src/info.cpp
+    src/supplemental.cpp
+    src/timed_text.cpp
     src/uuid.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
