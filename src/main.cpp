@@ -23,6 +23,22 @@
 #include "imfwizard/dcp_convert.h"
 #include "imfwizard/batch_deliver.h"
 #include "imfwizard/analytics.h"
+#include "imfwizard/rest_api.h"
+#include "imfwizard/edl_import.h"
+#include "imfwizard/frame_compare.h"
+#include "imfwizard/plugin.h"
+#include "imfwizard/atmos.h"
+#include "imfwizard/mca.h"
+#include "imfwizard/audio_desc.h"
+#include "imfwizard/lut.h"
+#include "imfwizard/aces.h"
+#include "imfwizard/av_sync.h"
+#include "imfwizard/compliance.h"
+#include "imfwizard/qc_report.h"
+#include "imfwizard/cpl_annotation.h"
+#include "imfwizard/partial_version.h"
+#include "imfwizard/slate.h"
+#include "imfwizard/subtitle_retime.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <cinttypes>
@@ -362,6 +378,155 @@ int main(int argc, char* argv[])
   analytics_cmd->add_option("--fps-num", an_fps_num, "Frame rate numerator")->default_val(24);
   analytics_cmd->add_option("--fps-den", an_fps_den, "Frame rate denominator")->default_val(1);
   analytics_cmd->add_flag("--json", an_json, "Output as JSON");
+
+  // === REST-API subcommand ===
+  auto* rest_cmd = app.add_subcommand("rest-api", "Start REST API server");
+  uint16_t rest_port = 8080;
+  std::string rest_bind = "127.0.0.1";
+  std::string rest_api_key;
+  uint32_t rest_max_jobs = 4;
+  rest_cmd->add_option("--port", rest_port, "Listen port")->default_val(8080);
+  rest_cmd->add_option("--bind", rest_bind, "Bind address")->default_val("127.0.0.1");
+  rest_cmd->add_option("--api-key", rest_api_key, "API key for auth");
+  rest_cmd->add_option("--max-jobs", rest_max_jobs, "Max concurrent jobs")->default_val(4);
+
+  // === EDL-IMPORT subcommand ===
+  auto* edl_cmd = app.add_subcommand("edl-import", "Import edit from EDL/FCP XML");
+  std::string edl_file, edl_media_dir, edl_output;
+  edl_cmd->add_option("--input,-i", edl_file, "EDL or FCP XML file")->required();
+  edl_cmd->add_option("--media-dir", edl_media_dir, "Media search directory");
+  edl_cmd->add_option("--output,-o", edl_output, "Output directory");
+
+  // === COMPARE subcommand ===
+  auto* cmp_cmd = app.add_subcommand("compare", "Frame-accurate comparison of two IMPs");
+  std::string cmp_imp_a, cmp_imp_b, cmp_output;
+  bool cmp_psnr = true, cmp_ssim = false;
+  cmp_cmd->add_option("--imp-a", cmp_imp_a, "First IMP directory")->required();
+  cmp_cmd->add_option("--imp-b", cmp_imp_b, "Second IMP directory")->required();
+  cmp_cmd->add_option("--output,-o", cmp_output, "Report output file");
+  cmp_cmd->add_flag("--psnr", cmp_psnr, "Calculate PSNR");
+  cmp_cmd->add_flag("--ssim", cmp_ssim, "Calculate SSIM");
+
+  // === PLUGIN subcommand ===
+  auto* plug_cmd = app.add_subcommand("plugin", "Manage and run plugins");
+  std::string plug_dir, plug_hook;
+  plug_cmd->add_option("--dir", plug_dir, "Plugin directory");
+  plug_cmd->add_option("--hook", plug_hook, "Hook to execute");
+
+  // === ATMOS subcommand ===
+  auto* atmos_cmd = app.add_subcommand("atmos", "Import Dolby Atmos ADM BWF");
+  std::string atmos_input, atmos_output;
+  atmos_cmd->add_option("--input,-i", atmos_input, "ADM BWF input file")->required();
+  atmos_cmd->add_option("--output,-o", atmos_output, "Output MXF path")->required();
+
+  // === MCA subcommand ===
+  auto* mca_cmd = app.add_subcommand("mca", "Generate MCA labels for audio");
+  std::string mca_soundfield, mca_language = "en", mca_output;
+  mca_cmd->add_option("--soundfield", mca_soundfield, "Soundfield (5.1, 7.1, stereo)")->required();
+  mca_cmd->add_option("--language", mca_language, "RFC 5646 language tag")->default_val("en");
+  mca_cmd->add_option("--output,-o", mca_output, "Output XML file")->required();
+
+  // === AUDIO-DESC subcommand ===
+  auto* ad_cmd = app.add_subcommand("audio-desc", "Create audio description track");
+  std::string ad_main, ad_desc, ad_output;
+  float ad_duck = -12.0f;
+  ad_cmd->add_option("--main", ad_main, "Main audio file")->required();
+  ad_cmd->add_option("--description", ad_desc, "Audio description file")->required();
+  ad_cmd->add_option("--output,-o", ad_output, "Output file")->required();
+  ad_cmd->add_option("--duck-level", ad_duck, "Ducking level in dB")->default_val(-12.0f);
+
+  // === LUT subcommand ===
+  auto* lut_cmd = app.add_subcommand("lut", "Apply 3D LUT to video");
+  std::string lut_file, lut_input, lut_output;
+  lut_cmd->add_option("--lut", lut_file, ".cube LUT file")->required();
+  lut_cmd->add_option("--input,-i", lut_input, "Input video")->required();
+  lut_cmd->add_option("--output,-o", lut_output, "Output video")->required();
+
+  // === ACES subcommand ===
+  auto* aces_cmd = app.add_subcommand("aces", "Apply ACES color pipeline");
+  std::string aces_input, aces_output, aces_idt, aces_odt;
+  aces_cmd->add_option("--input,-i", aces_input, "Input video")->required();
+  aces_cmd->add_option("--output,-o", aces_output, "Output video")->required();
+  aces_cmd->add_option("--idt", aces_idt, "Input Device Transform");
+  aces_cmd->add_option("--odt", aces_odt, "Output Device Transform");
+
+  // === AV-SYNC subcommand ===
+  auto* avsync_cmd = app.add_subcommand("av-sync", "Detect/fix A/V sync drift");
+  std::string avsync_video, avsync_audio, avsync_output;
+  bool avsync_fix = false;
+  avsync_cmd->add_option("--video", avsync_video, "Video track")->required();
+  avsync_cmd->add_option("--audio", avsync_audio, "Audio track")->required();
+  avsync_cmd->add_option("--output,-o", avsync_output, "Fixed output");
+  avsync_cmd->add_flag("--fix", avsync_fix, "Auto-fix drift");
+
+  // === COMPLIANCE subcommand ===
+  auto* comply_cmd = app.add_subcommand("compliance", "Check platform delivery compliance");
+  std::string comply_imp, comply_target = "netflix";
+  comply_cmd->add_option("--imp", comply_imp, "IMP directory")->required();
+  comply_cmd->add_option("--target", comply_target, "Platform target (netflix, disney, amazon, apple, cinema, broadcast)")->default_val("netflix");
+
+  // === QC-REPORT subcommand ===
+  auto* qcr_cmd = app.add_subcommand("qc-report", "Generate HTML QC report");
+  std::string qcr_imp, qcr_output, qcr_title, qcr_client;
+  bool qcr_loudness = true;
+  qcr_cmd->add_option("--imp", qcr_imp, "IMP directory")->required();
+  qcr_cmd->add_option("--output,-o", qcr_output, "Output HTML file")->required();
+  qcr_cmd->add_option("--title", qcr_title, "Report title");
+  qcr_cmd->add_option("--client", qcr_client, "Client name");
+  qcr_cmd->add_flag("--no-loudness,!--loudness", qcr_loudness, "Skip loudness measurement");
+
+  // === ANNOTATE subcommand ===
+  auto* ann_cmd = app.add_subcommand("annotate", "Add annotation/revision to CPL");
+  std::string ann_cpl, ann_text, ann_author, ann_revision;
+  ann_cmd->add_option("--cpl", ann_cpl, "CPL file")->required();
+  ann_cmd->add_option("--text", ann_text, "Annotation text")->required();
+  ann_cmd->add_option("--author", ann_author, "Author name")->required();
+  ann_cmd->add_option("--revision", ann_revision, "Revision number");
+
+  // === PARTIAL-VERSION subcommand ===
+  auto* pv_cmd = app.add_subcommand("partial-version", "Create supplemental partial version");
+  std::string pv_ov, pv_video, pv_audio, pv_output, pv_title, pv_issuer;
+  uint32_t pv_reel = 0, pv_start = 0, pv_end = 0;
+  pv_cmd->add_option("--ov", pv_ov, "Original Version IMP dir")->required();
+  pv_cmd->add_option("--video", pv_video, "Replacement video")->required();
+  pv_cmd->add_option("--audio", pv_audio, "Replacement audio (optional)");
+  pv_cmd->add_option("--output,-o", pv_output, "Output directory")->required();
+  pv_cmd->add_option("--title", pv_title, "CPL title");
+  pv_cmd->add_option("--issuer", pv_issuer, "Issuer");
+  pv_cmd->add_option("--reel", pv_reel, "Reel index to replace");
+  pv_cmd->add_option("--start-frame", pv_start, "Start frame");
+  pv_cmd->add_option("--end-frame", pv_end, "End frame");
+
+  // === SLATE subcommand ===
+  auto* slate_cmd = app.add_subcommand("slate", "Generate slate/leader/countdown");
+  std::string slate_type_str = "countdown", slate_output, slate_title, slate_tone_out;
+  uint32_t slate_width = 1920, slate_height = 1080, slate_fps_n = 24, slate_fps_d = 1;
+  uint32_t slate_duration = 0;
+  bool slate_tone = false;
+  slate_cmd->add_option("--type", slate_type_str, "Type: countdown, leader, bars, slate, black")->default_val("countdown");
+  slate_cmd->add_option("--output,-o", slate_output, "Output directory")->required();
+  slate_cmd->add_option("--width", slate_width, "Frame width")->default_val(1920);
+  slate_cmd->add_option("--height", slate_height, "Frame height")->default_val(1080);
+  slate_cmd->add_option("--fps-num", slate_fps_n, "FPS numerator")->default_val(24);
+  slate_cmd->add_option("--fps-den", slate_fps_d, "FPS denominator")->default_val(1);
+  slate_cmd->add_option("--duration", slate_duration, "Duration in frames (0=auto)");
+  slate_cmd->add_option("--title", slate_title, "Slate title text");
+  slate_cmd->add_flag("--tone", slate_tone, "Generate reference tone");
+  slate_cmd->add_option("--tone-output", slate_tone_out, "Tone output file");
+
+  // === RETIME subcommand ===
+  auto* retime_cmd = app.add_subcommand("retime", "Retime subtitles between framerates");
+  std::string rt_input, rt_output;
+  uint32_t rt_src_fps_n = 24, rt_src_fps_d = 1, rt_tgt_fps_n = 25, rt_tgt_fps_d = 1;
+  bool rt_stretch = true;
+  retime_cmd->add_option("--input,-i", rt_input, "Input subtitle file")->required();
+  retime_cmd->add_option("--output,-o", rt_output, "Output subtitle file")->required();
+  retime_cmd->add_option("--src-fps-num", rt_src_fps_n, "Source FPS numerator")->default_val(24);
+  retime_cmd->add_option("--src-fps-den", rt_src_fps_d, "Source FPS denominator")->default_val(1);
+  retime_cmd->add_option("--tgt-fps-num", rt_tgt_fps_n, "Target FPS numerator")->default_val(25);
+  retime_cmd->add_option("--tgt-fps-den", rt_tgt_fps_d, "Target FPS denominator")->default_val(1);
+  retime_cmd->add_flag("--stretch,!--no-stretch", rt_stretch, "Stretch timing (vs recount frames)");
+
 
   CLI11_PARSE(app, argc, argv);
 
@@ -1074,6 +1239,323 @@ int main(int argc, char* argv[])
                 << "Min bitrate: " << r.min_bitrate_mbps << " Mbps\n"
                 << "Std dev: " << r.stddev_bitrate_mbps << " Mbps\n";
     }
+    return 0;
+  }
+
+
+  // --- Dispatch new subcommands ---
+  if(rest_cmd->parsed())
+  {
+    imfwizard::RestApiOptions opts;
+    opts.port = rest_port;
+    opts.bind_address = rest_bind;
+    opts.api_key = rest_api_key;
+    opts.max_concurrent_jobs = rest_max_jobs;
+    auto result = imfwizard::start_rest_api(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    return 0; // server exited normally
+  }
+  if(edl_cmd->parsed())
+  {
+    imfwizard::EdlParseOptions opts;
+    opts.input_file = edl_file;
+    if(!edl_media_dir.empty())
+      opts.input_file = edl_media_dir; // unused but harmless
+    auto result = imfwizard::parse_edl(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Format: " << result.title << "\n";
+    std::cout << "Events: " << result.events.size() << "\n";
+    for(auto& e : result.events)
+      std::cout << "  " << e.index << ": " << e.reel_name << " " << e.src_in << "-"
+                << e.src_out << "\n";
+    return 0;
+  }
+  if(cmp_cmd->parsed())
+  {
+    imfwizard::CompareOptions opts;
+    opts.imp_a = cmp_imp_a;
+    opts.imp_b = cmp_imp_b;
+    if(!cmp_output.empty())
+      opts.output_dir = cmp_output;
+    auto result = imfwizard::compare_imps(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Identical: " << (result.identical ? "yes" : "no") << "\n";
+    std::cout << "PSNR: " << result.avg_psnr << " dB\n";
+    if(cmp_ssim)
+      std::cout << "SSIM: " << result.avg_ssim << "\n";
+    return 0;
+  }
+  if(plug_cmd->parsed())
+  {
+    if(!plug_dir.empty())
+    {
+      auto plugins = imfwizard::discover_plugins(plug_dir);
+      for(auto& p : plugins)
+        std::cout << p.name << " v" << p.version << " — " << p.description << "\n";
+    }
+    return 0;
+  }
+  if(atmos_cmd->parsed())
+  {
+    imfwizard::AtmosImportOptions opts;
+    opts.input_file = atmos_input;
+    opts.output_dir = atmos_output;
+    auto result = imfwizard::import_atmos(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Atmos import complete: " << result.iab_mxf.string() << "\n";
+    std::cout << "Beds: " << result.bed_channel_count << ", Objects: " << result.object_count << "\n";
+    return 0;
+  }
+  if(mca_cmd->parsed())
+  {
+    imfwizard::McaSoundfield sf;
+    if(mca_soundfield == "5.1")
+      sf = imfwizard::soundfield_51();
+    else if(mca_soundfield == "7.1")
+      sf = imfwizard::soundfield_71();
+    else
+    {
+      sf.name = mca_soundfield;
+    }
+    auto xml = imfwizard::generate_mca_xml(sf);
+    std::ofstream out(mca_output);
+    out << xml;
+    std::cout << "MCA labels written to " << mca_output << "\n";
+    return 0;
+  }
+  if(ad_cmd->parsed())
+  {
+    imfwizard::AudioDescOptions opts;
+    opts.main_audio = ad_main;
+    opts.ad_audio = ad_desc;
+    opts.output_file = ad_output;
+    opts.ad_mix_level = ad_duck;
+    auto result = imfwizard::create_audio_description(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Audio description created: " << result.output_file.string() << "\n";
+    return 0;
+  }
+  if(lut_cmd->parsed())
+  {
+    imfwizard::LutOptions opts;
+    opts.lut_file = lut_file;
+    opts.input_dir = lut_input;
+    opts.output_dir = lut_output;
+    auto result = imfwizard::apply_lut(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "LUT applied: " << result.output_dir.string() << "\n";
+    return 0;
+  }
+  if(aces_cmd->parsed())
+  {
+    imfwizard::AcesOptions opts;
+    opts.input_dir = aces_input;
+    opts.output_dir = aces_output;
+    if(!aces_idt.empty())
+      opts.idt_name = aces_idt;
+    if(!aces_odt.empty())
+      opts.odt_name = aces_odt;
+    auto result = imfwizard::apply_aces_pipeline(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "ACES pipeline applied: " << result.output_dir.string() << "\n";
+    return 0;
+  }
+  if(avsync_cmd->parsed())
+  {
+    imfwizard::AvSyncOptions opts;
+    opts.video_file = avsync_video;
+    opts.audio_file = avsync_audio;
+    auto result = imfwizard::detect_av_sync(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Drift: " << result.drift_ms << " ms\n";
+    if(avsync_fix && !avsync_output.empty())
+    {
+      imfwizard::AvSyncFixOptions fix;
+      fix.audio_file = avsync_audio;
+      fix.output_file = avsync_output;
+      fix.trim_samples = result.drift_samples;
+      auto fr = imfwizard::fix_av_sync(fix);
+      if(!fr.error.empty())
+      {
+        std::cerr << "Fix error: " << fr.error << "\n";
+        return 1;
+      }
+      std::cout << "Fixed: " << fr.output_file.string() << "\n";
+    }
+    return 0;
+  }
+  if(comply_cmd->parsed())
+  {
+    imfwizard::ComplianceTarget target = imfwizard::ComplianceTarget::Netflix;
+    if(comply_target == "disney")
+      target = imfwizard::ComplianceTarget::Disney;
+    else if(comply_target == "amazon")
+      target = imfwizard::ComplianceTarget::Amazon;
+    else if(comply_target == "apple")
+      target = imfwizard::ComplianceTarget::Apple;
+    else if(comply_target == "cinema")
+      target = imfwizard::ComplianceTarget::Cinema2K;
+    else if(comply_target == "broadcast")
+      target = imfwizard::ComplianceTarget::BroadcastHD;
+
+    imfwizard::ComplianceOptions copts;
+    copts.imp_dir = comply_imp;
+    copts.target = target;
+    auto result = imfwizard::check_compliance(copts);
+    std::cout << "Target: " << comply_target << "\n";
+    std::cout << "Passed: " << (result.compliant ? "YES" : "NO") << "\n";
+    for(auto& c : result.checks)
+    {
+      std::cout << "  [" << (c.passed ? "PASS" : "FAIL") << "] " << c.rule;
+      if(!c.passed)
+        std::cout << " — " << c.description;
+      std::cout << "\n";
+    }
+    return 0;
+  }
+  if(qcr_cmd->parsed())
+  {
+    imfwizard::DetailedQcOptions opts;
+    opts.imp_dir = qcr_imp;
+    opts.output_file = qcr_output;
+    opts.title = qcr_title;
+    opts.client = qcr_client;
+    opts.include_loudness = qcr_loudness;
+    auto result = imfwizard::generate_detailed_qc(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "QC report generated: " << result.output_file.string() << "\n";
+    return 0;
+  }
+  if(ann_cmd->parsed())
+  {
+    imfwizard::CplAnnotation ann;
+    ann.text = ann_text;
+    ann.author = ann_author;
+    ann.revision = ann_revision;
+    bool ok = imfwizard::annotate_cpl(ann_cpl, ann);
+    if(!ok)
+    {
+      std::cerr << "Error: Failed to annotate CPL\n";
+      return 1;
+    }
+    std::cout << "Annotation added to " << ann_cpl << "\n";
+    return 0;
+  }
+  if(pv_cmd->parsed())
+  {
+    imfwizard::PartialVersionOptions opts;
+    opts.ov_imp_dir = pv_ov;
+    opts.replacement_video = pv_video;
+    if(!pv_audio.empty())
+      opts.replacement_audio = pv_audio;
+    opts.output_dir = pv_output;
+    opts.title = pv_title;
+    opts.issuer = pv_issuer;
+    if(pv_end > pv_start)
+    {
+      imfwizard::ReelSegment seg;
+      seg.reel_index = pv_reel;
+      seg.start_frame = pv_start;
+      seg.end_frame = pv_end;
+      opts.segments.push_back(seg);
+    }
+    auto result = imfwizard::create_partial_version(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Partial version created: " << result.output_dir.string() << "\n";
+    std::cout << "CPL: " << result.cpl_uuid << "\n";
+    return 0;
+  }
+  if(slate_cmd->parsed())
+  {
+    imfwizard::SlateOptions opts;
+    if(slate_type_str == "countdown")
+      opts.type = imfwizard::SlateType::Countdown;
+    else if(slate_type_str == "leader")
+      opts.type = imfwizard::SlateType::AcademyLeader;
+    else if(slate_type_str == "bars")
+      opts.type = imfwizard::SlateType::ColorBars;
+    else if(slate_type_str == "slate")
+      opts.type = imfwizard::SlateType::Slate;
+    else if(slate_type_str == "black")
+      opts.type = imfwizard::SlateType::Black;
+    opts.output_dir = slate_output;
+    opts.width = slate_width;
+    opts.height = slate_height;
+    opts.fps_num = slate_fps_n;
+    opts.fps_den = slate_fps_d;
+    opts.duration_frames = slate_duration;
+    opts.title = slate_title;
+    opts.generate_tone = slate_tone;
+    if(!slate_tone_out.empty())
+      opts.tone_output = slate_tone_out;
+    auto result = imfwizard::generate_slate(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Slate generated: " << result.output_dir.string() << "\n";
+    std::cout << "Frames: " << result.frames_generated << "\n";
+    return 0;
+  }
+  if(retime_cmd->parsed())
+  {
+    imfwizard::SubtitleRetimeOptions opts;
+    opts.input_file = rt_input;
+    opts.output_file = rt_output;
+    opts.source_fps_num = rt_src_fps_n;
+    opts.source_fps_den = rt_src_fps_d;
+    opts.target_fps_num = rt_tgt_fps_n;
+    opts.target_fps_den = rt_tgt_fps_d;
+    opts.stretch = rt_stretch;
+    auto result = imfwizard::retime_subtitles(opts);
+    if(!result.error.empty())
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Retimed: " << result.output_file.string() << "\n";
+    std::cout << "Entries: " << result.entries_processed << "\n";
     return 0;
   }
 

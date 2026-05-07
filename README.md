@@ -41,6 +41,31 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **VMAF / PSNR / SSIM** quality metrics (via ffmpeg libvmaf)
 - **Bitrate analytics** — per-second throughput, histogram, standard deviation (JSON output for dashboards)
 - **QC HTML report** generation
+- **Frame-accurate comparison** — PSNR/SSIM comparison between two IMPs with diff report
+- **Platform compliance checking** — validate against Netflix, Disney+, Amazon, Apple, Cinema, Broadcast specs
+- **Detailed QC report** — HTML report with package info, track listing, loudness, thumbnails
+
+### Color & Audio Processing
+- **3D LUT application** — apply .cube LUTs to image sequences via ffmpeg lut3d
+- **ACES pipeline** — full IDT→RRT→ODT pipeline via ctlrender (with ffmpeg fallback)
+- **Audio description mixing** — combine AD narration with main mix using ducking
+- **MCA label generation** — SMPTE ST 377-4 Multi-Channel Audio labeling (5.1, 7.1, stereo presets)
+- **Dolby Atmos ADM BWF import** — import ADM Broadcast Wave Format to IAB MXF
+- **A/V sync detection & repair** — detect audio/video drift and auto-fix with trim/pad
+
+### Versioning & Annotation
+- **CPL annotation** — add revision notes and author metadata to CPL XML
+- **Partial version creation** — create supplemental IMPs replacing specific reel segments
+- **Subtitle retiming** — convert TTML/SRT timing between framerates (24→25, 23.976→24, etc.)
+
+### Pre-roll & Leaders
+- **Slate generation** — countdown, SMPTE bars, academy leader, text slate, black (as TIFF image sequence)
+- **Reference tone** — optional 1kHz WAV tone paired with visual pre-roll
+
+### Integration & Extensibility
+- **REST API server** — HTTP interface for /create, /validate, /encode, /transcode, /jobs
+- **EDL/FCP XML import** — parse CMX 3600 EDL and Final Cut Pro XML timelines
+- **Plugin system** — discover and execute Python plugin scripts with pre/post hooks
 
 ### Workflow & Automation
 - **Delivery presets** — Netflix, Disney+, Amazon, Apple TV+, Cinema 2K/4K, Broadcast, Archival
@@ -316,6 +341,128 @@ imfwizard preview -d /path/to/j2k/ -o /tmp/thumbs/ -f 42
 
 # Thumbnail strip (10 evenly spaced frames)
 imfwizard preview -d /path/to/j2k/ -o /tmp/thumbs/ --strip
+```
+
+### REST API server
+
+```bash
+# Start on port 9090 with API key auth
+imfwizard rest-api --port 9090 --api-key "my-secret" --max-jobs 8
+
+# Endpoints: GET /health, POST /create, POST /validate, POST /encode, POST /transcode, GET /jobs
+```
+
+### EDL import
+
+```bash
+# Parse a CMX 3600 EDL
+imfwizard edl-import -i timeline.edl
+
+# Parse Final Cut Pro XML
+imfwizard edl-import -i project.fcpxml
+```
+
+### Frame comparison
+
+```bash
+# Compare two IMPs (PSNR + SSIM)
+imfwizard compare --imp-a /path/to/imp_v1/ --imp-b /path/to/imp_v2/ --ssim -o report/
+```
+
+### Dolby Atmos import
+
+```bash
+imfwizard atmos -i atmos_master.bwf -o output_dir/
+```
+
+### MCA label generation
+
+```bash
+# Generate 5.1 surround MCA labels
+imfwizard mca --soundfield 5.1 --language en -o mca_labels.xml
+
+# 7.1 surround
+imfwizard mca --soundfield 7.1 --language en -o mca_71.xml
+```
+
+### Audio description
+
+```bash
+imfwizard audio-desc --main mix_51.wav --description ad_narration.wav -o combined.wav --duck-level -12
+```
+
+### Apply 3D LUT
+
+```bash
+imfwizard lut --lut grading.cube -i /frames/ -o /graded_frames/
+```
+
+### ACES color pipeline
+
+```bash
+imfwizard aces -i /log_frames/ -o /aces_frames/ --idt ARRI_LogC4 --odt P3D65_PQ_1000nits
+```
+
+### A/V sync check and fix
+
+```bash
+# Detect drift
+imfwizard av-sync --video /frames/ --audio mix.wav
+
+# Auto-fix
+imfwizard av-sync --video /frames/ --audio mix.wav --fix -o fixed.wav
+```
+
+### Platform compliance
+
+```bash
+# Check Netflix compliance
+imfwizard compliance --imp /path/to/imp/ --target netflix
+
+# Check Disney+ compliance
+imfwizard compliance --imp /path/to/imp/ --target disney
+```
+
+### QC report
+
+```bash
+imfwizard qc-report --imp /path/to/imp/ -o report.html --title "Final QC" --client "Studio X"
+```
+
+### CPL annotation
+
+```bash
+imfwizard annotate --cpl /path/to/CPL.xml --text "Color correction pass 2" --author "Jane" --revision "v1.2"
+```
+
+### Partial version (Supplemental IMP)
+
+```bash
+imfwizard partial-version --ov /orig_imp/ --video new_reel2.mxf -o /supplement/ \
+  --reel 1 --start-frame 1200 --end-frame 2400 --title "Reel 2 fix"
+```
+
+### Slate / countdown generation
+
+```bash
+# 10-second countdown
+imfwizard slate --type countdown -o /pre_roll/ --width 1920 --height 1080
+
+# SMPTE color bars with 1kHz tone
+imfwizard slate --type bars -o /bars/ --tone --tone-output reference.wav
+
+# Text slate
+imfwizard slate --type slate -o /slate/ --title "MY FILM — Final Master"
+```
+
+### Subtitle retiming
+
+```bash
+# Retime TTML from 24fps to 25fps
+imfwizard retime -i subs_24.ttml -o subs_25.ttml --src-fps-num 24 --tgt-fps-num 25
+
+# Retime SRT from 23.976 to 24fps
+imfwizard retime -i subs.srt -o subs_24.srt --src-fps-num 24000 --src-fps-den 1001 --tgt-fps-num 24
 ```
 
 ## Architecture

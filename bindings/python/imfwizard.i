@@ -23,6 +23,21 @@
 #include "imfwizard/batch_deliver.h"
 #include "imfwizard/prores.h"
 #include "imfwizard/preview.h"
+#include "imfwizard/edl_import.h"
+#include "imfwizard/frame_compare.h"
+#include "imfwizard/plugin.h"
+#include "imfwizard/atmos.h"
+#include "imfwizard/mca.h"
+#include "imfwizard/audio_desc.h"
+#include "imfwizard/lut.h"
+#include "imfwizard/aces.h"
+#include "imfwizard/av_sync.h"
+#include "imfwizard/compliance.h"
+#include "imfwizard/qc_report.h"
+#include "imfwizard/cpl_annotation.h"
+#include "imfwizard/partial_version.h"
+#include "imfwizard/slate.h"
+#include "imfwizard/subtitle_retime.h"
 %}
 
 // Use STL support
@@ -141,6 +156,21 @@
 %include "imfwizard/batch_deliver.h"
 %include "imfwizard/prores.h"
 %include "imfwizard/preview.h"
+%include "imfwizard/edl_import.h"
+%include "imfwizard/frame_compare.h"
+%include "imfwizard/plugin.h"
+%include "imfwizard/atmos.h"
+%include "imfwizard/mca.h"
+%include "imfwizard/audio_desc.h"
+%include "imfwizard/lut.h"
+%include "imfwizard/aces.h"
+%include "imfwizard/av_sync.h"
+%include "imfwizard/compliance.h"
+%include "imfwizard/qc_report.h"
+%include "imfwizard/cpl_annotation.h"
+%include "imfwizard/partial_version.h"
+%include "imfwizard/slate.h"
+%include "imfwizard/subtitle_retime.h"
 
 // Python-friendly accessors for std::optional members
 %extend imfwizard::ImpOptions {

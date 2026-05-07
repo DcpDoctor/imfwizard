@@ -78,7 +78,23 @@ add_library(imfwizard_core STATIC
     src/burnin.cpp
     src/dcp_convert.cpp
     src/batch_deliver.cpp
-    src/analytics.cpp)
+    src/analytics.cpp
+    src/rest_api.cpp
+    src/edl_import.cpp
+    src/frame_compare.cpp
+    src/plugin.cpp
+    src/atmos.cpp
+    src/mca.cpp
+    src/audio_desc.cpp
+    src/lut.cpp
+    src/aces.cpp
+    src/av_sync.cpp
+    src/compliance.cpp
+    src/qc_report.cpp
+    src/cpl_annotation.cpp
+    src/partial_version.cpp
+    src/slate.cpp
+    src/subtitle_retime.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include
