@@ -2,19 +2,34 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Command } from "@tauri-apps/plugin-shell";
 import { initTimeline } from "./timeline.js";
+import { initPreview } from "./preview.js";
 
 // Tab navigation
-document.querySelectorAll(".nav-tabs button").forEach((btn) => {
+document.querySelectorAll(".nav-tabs button[data-page]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".nav-tabs button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".nav-tabs button[data-page]").forEach(b => b.classList.remove("active"));
     document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
     btn.classList.add("active");
     document.getElementById(btn.dataset.page).classList.add("active");
   });
 });
 
-// Initialize timeline
+// Theme toggle
+const themeBtn = document.getElementById("theme-toggle");
+themeBtn?.addEventListener("click", () => {
+  document.body.classList.toggle("light-theme");
+  themeBtn.textContent = document.body.classList.contains("light-theme") ? "☀️" : "🌙";
+  localStorage.setItem("theme", document.body.classList.contains("light-theme") ? "light" : "dark");
+});
+// Restore saved theme
+if (localStorage.getItem("theme") === "light") {
+  document.body.classList.add("light-theme");
+  if (themeBtn) themeBtn.textContent = "☀️";
+}
+
+// Initialize timeline & preview
 initTimeline();
+initPreview();
 
 let videoDir = "";
 let audioFile = "";

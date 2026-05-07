@@ -8,6 +8,14 @@
 #include "imfwizard/report.h"
 #include "imfwizard/conform.h"
 #include "imfwizard/watch.h"
+#include "imfwizard/loudness.h"
+#include "imfwizard/qc.h"
+#include "imfwizard/channel_map.h"
+#include "imfwizard/cloud.h"
+#include "imfwizard/captions.h"
+#include "imfwizard/watermark.h"
+#include "imfwizard/aspera.h"
+#include "imfwizard/profiles.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <filesystem>
@@ -145,6 +153,71 @@ int main(int argc, char* argv[])
     report_cmd->add_option("imp_dir", rpt_imp_dir, "IMP directory")->required()
         ->check(CLI::ExistingDirectory);
     report_cmd->add_option("-o,--output", rpt_output, "Output HTML file")->required();
+
+    // === LOUDNESS subcommand ===
+    auto* loudness_cmd = app.add_subcommand("loudness", "Measure/normalize audio loudness");
+    std::string loud_input, loud_output;
+    double loud_target = -23.0;
+    bool loud_normalize = false;
+    loudness_cmd->add_option("-i,--input", loud_input, "Audio WAV file")->required();
+    loudness_cmd->add_option("-o,--output", loud_output, "Normalized output file");
+    loudness_cmd->add_option("--target", loud_target, "Target LUFS")->default_val(-23.0);
+    loudness_cmd->add_flag("-n,--normalize", loud_normalize, "Normalize to target");
+
+    // === QC subcommand ===
+    auto* qc_cmd = app.add_subcommand("qc", "Frame-level quality control analysis");
+    std::string qc_dir, qc_ref, qc_dist;
+    double qc_max = 300.0, qc_min = 50.0;
+    qc_cmd->add_option("-d,--dir", qc_dir, "J2K frame directory");
+    qc_cmd->add_option("--ref", qc_ref, "Reference video (for VMAF)");
+    qc_cmd->add_option("--dist", qc_dist, "Distorted video (for VMAF)");
+    qc_cmd->add_option("--max", qc_max, "Max bitrate threshold (Mbps)");
+    qc_cmd->add_option("--min", qc_min, "Min bitrate threshold (Mbps)");
+
+    // === CHANNEL-MAP subcommand ===
+    auto* chmap_cmd = app.add_subcommand("channel-map", "Remap audio channels");
+    std::string chmap_input, chmap_output, chmap_target = "stereo";
+    chmap_cmd->add_option("-i,--input", chmap_input, "Input WAV")->required();
+    chmap_cmd->add_option("-o,--output", chmap_output, "Output WAV")->required();
+    chmap_cmd->add_option("-t,--target", chmap_target, "Target layout (mono/stereo/5.1/7.1)");
+
+    // === UPLOAD subcommand ===
+    auto* upload_cmd = app.add_subcommand("upload", "Upload IMP to cloud storage");
+    std::string up_dir, up_bucket, up_prefix, up_region = "us-east-1", up_profile;
+    bool up_aspera = false;
+    std::string up_host, up_user, up_token, up_remote_path;
+    upload_cmd->add_option("-d,--dir", up_dir, "IMP directory")->required();
+    upload_cmd->add_option("-b,--bucket", up_bucket, "S3 bucket name");
+    upload_cmd->add_option("-p,--prefix", up_prefix, "S3 key prefix");
+    upload_cmd->add_option("--region", up_region, "AWS region");
+    upload_cmd->add_option("--profile", up_profile, "AWS profile");
+    upload_cmd->add_flag("--aspera", up_aspera, "Use Aspera FASP instead of S3");
+    upload_cmd->add_option("--host", up_host, "Aspera remote host");
+    upload_cmd->add_option("--user", up_user, "Aspera username");
+    upload_cmd->add_option("--token", up_token, "Aspera token/key");
+    upload_cmd->add_option("--remote-path", up_remote_path, "Aspera remote path");
+
+    // === CAPTIONS subcommand ===
+    auto* captions_cmd = app.add_subcommand("captions", "Convert SRT/SCC to TTML for IMF");
+    std::string cap_input, cap_output;
+    uint32_t cap_fps = 24;
+    captions_cmd->add_option("-i,--input", cap_input, "Caption file (SRT/SCC)")->required();
+    captions_cmd->add_option("-o,--output", cap_output, "Output TTML file")->required();
+    captions_cmd->add_option("--fps", cap_fps, "Frame rate")->default_val(24);
+
+    // === WATERMARK subcommand ===
+    auto* wm_cmd = app.add_subcommand("watermark", "Apply forensic watermark to J2K frames");
+    std::string wm_input, wm_output, wm_payload;
+    uint8_t wm_strength = 3;
+    wm_cmd->add_option("-i,--input", wm_input, "J2K frame directory")->required();
+    wm_cmd->add_option("-o,--output", wm_output, "Output directory")->required();
+    wm_cmd->add_option("-p,--payload", wm_payload, "Watermark payload")->required();
+    wm_cmd->add_option("-s,--strength", wm_strength, "Strength 1-5")->default_val(3);
+
+    // === PROFILES subcommand ===
+    auto* profiles_cmd = app.add_subcommand("profiles", "List available delivery profiles");
+    std::string prof_name;
+    profiles_cmd->add_option("-n,--name", prof_name, "Show details for specific profile");
 
     CLI11_PARSE(app, argc, argv);
 
@@ -353,6 +426,134 @@ int main(int argc, char* argv[])
         opts.title = std::filesystem::path(rpt_imp_dir).filename().string();
         imfwizard::write_qc_report(opts, rpt_output);
         std::cout << "QC report written to " << rpt_output << "\n";
+        return 0;
+    }
+
+    if (loudness_cmd->parsed()) {
+        if (loud_normalize && !loud_output.empty()) {
+            imfwizard::NormalizeOptions opts;
+            opts.input_file = loud_input;
+            opts.output_file = loud_output;
+            opts.target_lufs = loud_target;
+            auto r = imfwizard::normalize_loudness(opts);
+            if (!r.success) { spdlog::error("{}", r.error); return 1; }
+            std::cout << "Normalized to " << loud_output << "\n";
+        } else {
+            auto r = imfwizard::measure_loudness(loud_input);
+            if (!r.success) { spdlog::error("{}", r.error); return 1; }
+            std::cout << "Integrated: " << r.integrated_lufs << " LUFS\n"
+                      << "LRA: " << r.loudness_range_lu << " LU\n"
+                      << "True Peak: " << r.true_peak_dbtp << " dBTP\n"
+                      << "EBU R128: " << (r.compliant_r128 ? "PASS" : "FAIL") << "\n"
+                      << "ATSC A/85: " << (r.compliant_atsc ? "PASS" : "FAIL") << "\n";
+        }
+        return 0;
+    }
+
+    if (qc_cmd->parsed()) {
+        if (!qc_dir.empty()) {
+            imfwizard::FrameQcOptions opts;
+            opts.j2k_dir = qc_dir;
+            opts.max_bitrate_mbps = qc_max;
+            opts.min_bitrate_mbps = qc_min;
+            auto r = imfwizard::analyze_frame_qc(opts);
+            if (!r.success) { spdlog::error("{}", r.error); return 1; }
+            std::cout << "Frames: " << r.total_frames << "\n"
+                      << "Avg bitrate: " << r.average_bitrate_mbps << " Mbps\n"
+                      << "Peak: " << r.peak_bitrate_mbps << " Mbps\n"
+                      << "Over-budget: " << r.over_budget_count << "\n"
+                      << "Under-budget: " << r.under_budget_count << "\n";
+        }
+        if (!qc_ref.empty() && !qc_dist.empty()) {
+            imfwizard::QualityOptions opts;
+            opts.reference = qc_ref;
+            opts.distorted = qc_dist;
+            auto r = imfwizard::compute_quality(opts);
+            if (!r.success) { spdlog::error("{}", r.error); return 1; }
+            std::cout << "VMAF: " << r.vmaf_score << "\n"
+                      << "PSNR: " << r.psnr_avg << " dB\n"
+                      << "SSIM: " << r.ssim << "\n";
+        }
+        return 0;
+    }
+
+    if (chmap_cmd->parsed()) {
+        imfwizard::ChannelMapOptions opts;
+        opts.input_file = chmap_input;
+        opts.output_file = chmap_output;
+        if (chmap_target == "mono") opts.target_layout = imfwizard::ChannelLayout::Mono;
+        else if (chmap_target == "stereo") opts.target_layout = imfwizard::ChannelLayout::Stereo;
+        else if (chmap_target == "5.1") opts.target_layout = imfwizard::ChannelLayout::Surround_51;
+        else if (chmap_target == "7.1") opts.target_layout = imfwizard::ChannelLayout::Surround_71;
+        auto r = imfwizard::remap_channels(opts);
+        if (!r.success) { spdlog::error("{}", r.error); return 1; }
+        std::cout << "Remapped " << r.input_channels << "ch -> " << r.output_channels << "ch: "
+                  << r.output_file.string() << "\n";
+        return 0;
+    }
+
+    if (upload_cmd->parsed()) {
+        if (up_aspera) {
+            imfwizard::AsperaOptions opts;
+            opts.source_dir = up_dir;
+            opts.remote_host = up_host;
+            opts.remote_path = up_remote_path;
+            opts.username = up_user;
+            opts.token = up_token;
+            auto r = imfwizard::aspera_transfer(opts);
+            if (!r.success) { spdlog::error("{}", r.error); return 1; }
+            std::cout << "Transferred " << r.files_transferred << " files at "
+                      << r.effective_rate_mbps << " Mbps\n";
+        } else {
+            imfwizard::S3UploadOptions opts;
+            opts.source_dir = up_dir;
+            opts.bucket = up_bucket;
+            opts.prefix = up_prefix;
+            opts.region = up_region;
+            opts.profile = up_profile;
+            auto r = imfwizard::upload_to_s3(opts);
+            if (!r.success) { spdlog::error("{}", r.error); return 1; }
+            std::cout << "Uploaded " << r.files_uploaded << " files to s3://"
+                      << up_bucket << "/" << up_prefix << "\n";
+        }
+        return 0;
+    }
+
+    if (captions_cmd->parsed()) {
+        auto parsed = imfwizard::parse_captions(cap_input, cap_fps);
+        if (!parsed.success) { spdlog::error("{}", parsed.error); return 1; }
+        imfwizard::write_ttml_captions(parsed.entries, cap_output, cap_fps, 1);
+        std::cout << "Converted " << parsed.entries.size() << " captions to " << cap_output << "\n";
+        return 0;
+    }
+
+    if (wm_cmd->parsed()) {
+        imfwizard::WatermarkOptions opts;
+        opts.input_dir = wm_input;
+        opts.output_dir = wm_output;
+        opts.payload = wm_payload;
+        opts.strength = wm_strength;
+        auto r = imfwizard::apply_watermark(opts);
+        if (!r.success) { spdlog::error("{}", r.error); return 1; }
+        std::cout << "Watermarked " << r.frames_watermarked << " frames\n";
+        return 0;
+    }
+
+    if (profiles_cmd->parsed()) {
+        if (prof_name.empty()) {
+            std::cout << "Available delivery profiles:\n";
+            for (const auto& name : imfwizard::available_profiles)
+                std::cout << "  " << name << "\n";
+        } else {
+            auto p = imfwizard::get_profile(prof_name);
+            std::cout << p.name << " — " << p.description << "\n"
+                      << "  Resolution: " << p.max_width << "x" << p.max_height << "\n"
+                      << "  Bit depth: " << p.bit_depth << "\n"
+                      << "  Max bitrate: " << p.max_bitrate_mbps << " Mbps\n"
+                      << "  HDR required: " << (p.requires_hdr ? "yes" : "no") << "\n"
+                      << "  App constraint: " << p.app_constraint << "\n"
+                      << "  Signing required: " << (p.require_signing ? "yes" : "no") << "\n";
+        }
         return 0;
     }
 

@@ -63,6 +63,8 @@ add_library(imfwizard_core STATIC
     src/qc.cpp
     src/hdr10plus.cpp
     src/accessibility.cpp
+    src/watermark.cpp
+    src/aspera.cpp
     src/uuid.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
@@ -101,4 +103,8 @@ if(BUILD_TESTING)
     add_executable(imfwizard_test tests/test_main.cpp)
     target_link_libraries(imfwizard_test PRIVATE imfwizard_core)
     add_test(NAME imfwizard_test COMMAND imfwizard_test)
+
+    add_executable(imfwizard_integration_test tests/test_integration.cpp)
+    target_link_libraries(imfwizard_integration_test PRIVATE imfwizard_core)
+    add_test(NAME imfwizard_integration_test COMMAND imfwizard_integration_test)
 endif()

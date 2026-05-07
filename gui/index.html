@@ -18,6 +18,9 @@
       <button data-page="timeline-page">Timeline</button>
       <button data-page="transcode-page">Transcode</button>
       <button data-page="validate-page">Validate</button>
+      <button data-page="preview-page">Preview</button>
+      <span class="nav-spacer"></span>
+      <button id="theme-toggle" title="Toggle dark/light theme">🌙</button>
     </nav>
 
     <main>
@@ -123,6 +126,30 @@
           </div>
           <button class="btn-primary" id="val-start">Validate</button>
           <pre id="val-log" style="margin-top:1rem; display:none;"></pre>
+        </section>
+      </section>
+
+      <section class="page" id="preview-page">
+        <section class="panel">
+          <h2>Preview Player</h2>
+          <div class="field">
+            <label>IMP or J2K Directory</label>
+            <button type="button" id="prev-select">Browse...</button>
+            <span id="prev-path" class="path-display">No directory selected</span>
+          </div>
+          <div id="preview-container">
+            <canvas id="preview-canvas" width="1920" height="1080"></canvas>
+            <div id="preview-controls">
+              <button id="prev-back" title="Previous frame">⏮</button>
+              <button id="prev-play" title="Play/Pause">▶</button>
+              <button id="prev-forward" title="Next frame">⏭</button>
+              <span id="prev-frame-num">Frame: 0 / 0</span>
+              <input type="range" id="prev-scrub" min="0" max="0" value="0" />
+            </div>
+            <div id="waveform-container">
+              <canvas id="waveform-canvas" width="1920" height="120"></canvas>
+            </div>
+          </div>
         </section>
       </section>
     </main>
