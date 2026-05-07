@@ -50,7 +50,6 @@ add_library(imfwizard_core STATIC
     src/supplemental.cpp
     src/timed_text.cpp
     src/encode.cpp
-    src/validate.cpp
     src/multi_cpl.cpp
     src/transcode.cpp
     src/dolby_vision.cpp
@@ -62,11 +61,9 @@ add_library(imfwizard_core STATIC
     src/report.cpp
     src/conform.cpp
     src/profiles.cpp
-    src/loudness.cpp
     src/captions.cpp
     src/channel_map.cpp
     src/cloud.cpp
-    src/qc.cpp
     src/hdr10plus.cpp
     src/accessibility.cpp
     src/watermark.cpp
@@ -81,16 +78,12 @@ add_library(imfwizard_core STATIC
     src/analytics.cpp
     src/rest_api.cpp
     src/edl_import.cpp
-    src/frame_compare.cpp
     src/plugin.cpp
     src/atmos.cpp
     src/mca.cpp
     src/audio_desc.cpp
     src/lut.cpp
     src/aces.cpp
-    src/av_sync.cpp
-    src/compliance.cpp
-    src/qc_report.cpp
     src/cpl_annotation.cpp
     src/partial_version.cpp
     src/slate.cpp
@@ -103,10 +96,8 @@ add_library(imfwizard_core STATIC
     src/mxf_playback.cpp
     src/webhook.cpp
     src/shell_completion.cpp
-    src/schema_validate.cpp
     src/pdf_report.cpp
     src/subtitle_convert.cpp
-    src/hdr_validate.cpp
     src/timecode.cpp)
 
 target_include_directories(imfwizard_core PUBLIC

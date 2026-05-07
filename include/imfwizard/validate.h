@@ -27,10 +27,7 @@ struct ValidationResult
   std::string validator_version;
 };
 
-// Validate an IMP using Netflix Photon (requires java)
-ValidationResult validate_with_photon(const std::filesystem::path& imp_dir);
-
-// Check if Photon is available on the system
-bool photon_available();
+// Validation has been moved to dcpdoctor.
+// Use: dcpdoctor validate-imp <imp_dir>
 
 } // namespace imfwizard

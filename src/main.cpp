@@ -8,8 +8,6 @@
 #include "imfwizard/report.h"
 #include "imfwizard/conform.h"
 #include "imfwizard/watch.h"
-#include "imfwizard/loudness.h"
-#include "imfwizard/qc.h"
 #include "imfwizard/channel_map.h"
 #include "imfwizard/cloud.h"
 #include "imfwizard/captions.h"
@@ -25,16 +23,12 @@
 #include "imfwizard/analytics.h"
 #include "imfwizard/rest_api.h"
 #include "imfwizard/edl_import.h"
-#include "imfwizard/frame_compare.h"
 #include "imfwizard/plugin.h"
 #include "imfwizard/atmos.h"
 #include "imfwizard/mca.h"
 #include "imfwizard/audio_desc.h"
 #include "imfwizard/lut.h"
 #include "imfwizard/aces.h"
-#include "imfwizard/av_sync.h"
-#include "imfwizard/compliance.h"
-#include "imfwizard/qc_report.h"
 #include "imfwizard/cpl_annotation.h"
 #include "imfwizard/partial_version.h"
 #include "imfwizard/slate.h"
@@ -47,10 +41,8 @@
 #include "imfwizard/mxf_playback.h"
 #include "imfwizard/webhook.h"
 #include "imfwizard/shell_completion.h"
-#include "imfwizard/schema_validate.h"
 #include "imfwizard/pdf_report.h"
 #include "imfwizard/subtitle_convert.h"
-#include "imfwizard/hdr_validate.h"
 #include "imfwizard/timecode.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
@@ -126,13 +118,6 @@ int main(int argc, char* argv[])
   encode_cmd->add_option("--threads", enc_threads, "Number of threads (0=auto)")->default_val(0);
   encode_cmd->add_flag(
       "--no-cinema", [&](int64_t) { enc_cinema = false; }, "Disable cinema profile");
-
-  // === VALIDATE subcommand ===
-  auto* val_cmd = app.add_subcommand("validate", "Validate an existing IMP (via Photon)");
-  std::string val_dir;
-  val_cmd->add_option("imp_dir", val_dir, "IMP directory to validate")
-      ->required()
-      ->check(CLI::ExistingDirectory);
 
   // === SUPPLEMENT subcommand ===
   auto* sup_cmd = app.add_subcommand("supplement", "Create a Supplemental IMP");
@@ -222,26 +207,6 @@ int main(int argc, char* argv[])
       ->required()
       ->check(CLI::ExistingDirectory);
   report_cmd->add_option("-o,--output", rpt_output, "Output HTML file")->required();
-
-  // === LOUDNESS subcommand ===
-  auto* loudness_cmd = app.add_subcommand("loudness", "Measure/normalize audio loudness");
-  std::string loud_input, loud_output;
-  double loud_target = -23.0;
-  bool loud_normalize = false;
-  loudness_cmd->add_option("-i,--input", loud_input, "Audio WAV file")->required();
-  loudness_cmd->add_option("-o,--output", loud_output, "Normalized output file");
-  loudness_cmd->add_option("--target", loud_target, "Target LUFS")->default_val(-23.0);
-  loudness_cmd->add_flag("-n,--normalize", loud_normalize, "Normalize to target");
-
-  // === QC subcommand ===
-  auto* qc_cmd = app.add_subcommand("qc", "Frame-level quality control analysis");
-  std::string qc_dir, qc_ref, qc_dist;
-  double qc_max = 300.0, qc_min = 50.0;
-  qc_cmd->add_option("-d,--dir", qc_dir, "J2K frame directory");
-  qc_cmd->add_option("--ref", qc_ref, "Reference video (for VMAF)");
-  qc_cmd->add_option("--dist", qc_dist, "Distorted video (for VMAF)");
-  qc_cmd->add_option("--max", qc_max, "Max bitrate threshold (Mbps)");
-  qc_cmd->add_option("--min", qc_min, "Min bitrate threshold (Mbps)");
 
   // === CHANNEL-MAP subcommand ===
   auto* chmap_cmd = app.add_subcommand("channel-map", "Remap audio channels");
@@ -421,28 +386,6 @@ int main(int argc, char* argv[])
   edl_cmd->add_option("--media-dir", edl_media_dir, "Media search directory");
   edl_cmd->add_option("--output,-o", edl_output, "Output directory");
 
-  // === COMPARE subcommand ===
-  auto* cmp_cmd = app.add_subcommand("compare", "Frame-accurate comparison of two IMPs or files");
-  std::string cmp_imp_a, cmp_imp_b, cmp_output, cmp_vmaf_model;
-  bool cmp_psnr = true, cmp_ssim = false, cmp_vmaf = false;
-  bool cmp_html = false, cmp_extract = false;
-  uint32_t cmp_start = 0, cmp_end = 0, cmp_interval = 1;
-  double cmp_thresh_psnr = 40.0, cmp_thresh_ssim = 0.95;
-  cmp_cmd->add_option("--imp-a", cmp_imp_a, "First IMP directory or video file")->required();
-  cmp_cmd->add_option("--imp-b", cmp_imp_b, "Second IMP directory or video file")->required();
-  cmp_cmd->add_option("--output,-o", cmp_output, "Report output directory");
-  cmp_cmd->add_flag("--psnr", cmp_psnr, "Calculate PSNR");
-  cmp_cmd->add_flag("--ssim", cmp_ssim, "Calculate SSIM");
-  cmp_cmd->add_flag("--vmaf", cmp_vmaf, "Calculate VMAF");
-  cmp_cmd->add_option("--vmaf-model", cmp_vmaf_model, "Path to VMAF model file");
-  cmp_cmd->add_flag("--html", cmp_html, "Generate HTML visual report");
-  cmp_cmd->add_flag("--extract-diffs", cmp_extract, "Extract diff frame images");
-  cmp_cmd->add_option("--start-frame", cmp_start, "Start frame (0 = beginning)");
-  cmp_cmd->add_option("--end-frame", cmp_end, "End frame (0 = end)");
-  cmp_cmd->add_option("--interval", cmp_interval, "Compare every Nth frame")->default_val(1);
-  cmp_cmd->add_option("--threshold-psnr", cmp_thresh_psnr, "PSNR threshold (dB)")->default_val(40.0);
-  cmp_cmd->add_option("--threshold-ssim", cmp_thresh_ssim, "SSIM threshold")->default_val(0.95);
-
   // === PLUGIN subcommand ===
   auto* plug_cmd = app.add_subcommand("plugin", "Manage and run plugins");
   std::string plug_dir, plug_hook;
@@ -485,31 +428,6 @@ int main(int argc, char* argv[])
   aces_cmd->add_option("--output,-o", aces_output, "Output video")->required();
   aces_cmd->add_option("--idt", aces_idt, "Input Device Transform");
   aces_cmd->add_option("--odt", aces_odt, "Output Device Transform");
-
-  // === AV-SYNC subcommand ===
-  auto* avsync_cmd = app.add_subcommand("av-sync", "Detect/fix A/V sync drift");
-  std::string avsync_video, avsync_audio, avsync_output;
-  bool avsync_fix = false;
-  avsync_cmd->add_option("--video", avsync_video, "Video track")->required();
-  avsync_cmd->add_option("--audio", avsync_audio, "Audio track")->required();
-  avsync_cmd->add_option("--output,-o", avsync_output, "Fixed output");
-  avsync_cmd->add_flag("--fix", avsync_fix, "Auto-fix drift");
-
-  // === COMPLIANCE subcommand ===
-  auto* comply_cmd = app.add_subcommand("compliance", "Check platform delivery compliance");
-  std::string comply_imp, comply_target = "netflix";
-  comply_cmd->add_option("--imp", comply_imp, "IMP directory")->required();
-  comply_cmd->add_option("--target", comply_target, "Platform target (netflix, disney, amazon, apple, cinema, broadcast)")->default_val("netflix");
-
-  // === QC-REPORT subcommand ===
-  auto* qcr_cmd = app.add_subcommand("qc-report", "Generate HTML QC report");
-  std::string qcr_imp, qcr_output, qcr_title, qcr_client;
-  bool qcr_loudness = true;
-  qcr_cmd->add_option("--imp", qcr_imp, "IMP directory")->required();
-  qcr_cmd->add_option("--output,-o", qcr_output, "Output HTML file")->required();
-  qcr_cmd->add_option("--title", qcr_title, "Report title");
-  qcr_cmd->add_option("--client", qcr_client, "Client name");
-  qcr_cmd->add_flag("--no-loudness,!--loudness", qcr_loudness, "Skip loudness measurement");
 
   // === ANNOTATE subcommand ===
   auto* ann_cmd = app.add_subcommand("annotate", "Add annotation/revision to CPL");
@@ -689,17 +607,6 @@ int main(int argc, char* argv[])
   completions_cmd->add_flag("--fish", comp_fish, "Generate fish completion");
   completions_cmd->add_flag("--install", comp_install, "Show installation instructions");
 
-  // === Schema-validate subcommand ===
-  auto* schemaval_cmd = app.add_subcommand("schema-validate", "Validate IMP XML against SMPTE XSD schemas");
-  std::string schemaval_imp, schemaval_schema_dir;
-  bool schemaval_strict = false, schemaval_no_cpl = false, schemaval_no_pkl = false, schemaval_no_am = false;
-  schemaval_cmd->add_option("--input,-i", schemaval_imp, "IMP directory")->required();
-  schemaval_cmd->add_option("--schema-dir", schemaval_schema_dir, "Directory containing XSD files");
-  schemaval_cmd->add_flag("--strict", schemaval_strict, "Treat warnings as errors");
-  schemaval_cmd->add_flag("--no-cpl", schemaval_no_cpl, "Skip CPL validation");
-  schemaval_cmd->add_flag("--no-pkl", schemaval_no_pkl, "Skip PKL validation");
-  schemaval_cmd->add_flag("--no-assetmap", schemaval_no_am, "Skip AssetMap validation");
-
   // === PDF report subcommand ===
   auto* pdfreport_cmd = app.add_subcommand("pdf-report", "Generate PDF QC report for an IMP");
   std::string pdfreport_imp, pdfreport_output, pdfreport_title, pdfreport_author = "IMF Wizard";
@@ -718,16 +625,6 @@ int main(int argc, char* argv[])
   subconv_cmd->add_option("--lang", subconv_lang, "Language code")->default_val("en");
   subconv_cmd->add_option("--fps", subconv_fps, "Frame rate (for SCC timecodes)")->default_val(24.0);
   subconv_cmd->add_option("--offset", subconv_offset, "Time offset in seconds");
-
-  // === HDR validate subcommand ===
-  auto* hdrval_cmd = app.add_subcommand("hdr-validate", "Validate HDR metadata against spec");
-  std::string hdrval_video, hdrval_spec = "hdr10";
-  uint16_t hdrval_max_cll = 0, hdrval_max_fall = 0, hdrval_bit_depth = 10;
-  hdrval_cmd->add_option("--input,-i", hdrval_video, "Video file to probe")->required();
-  hdrval_cmd->add_option("--spec,-s", hdrval_spec, "Target spec (hdr10/hlg/dolby_vision)")->default_val("hdr10");
-  hdrval_cmd->add_option("--max-cll", hdrval_max_cll, "Expected max content light level");
-  hdrval_cmd->add_option("--max-fall", hdrval_max_fall, "Expected max frame-average light level");
-  hdrval_cmd->add_option("--bit-depth", hdrval_bit_depth, "Expected bit depth")->default_val(10);
 
   // === Timecode convert subcommand ===
   auto* tcconv_cmd = app.add_subcommand("timecode-convert", "Convert timecode between frame rates");
@@ -870,29 +767,6 @@ int main(int argc, char* argv[])
     return 0;
   }
 
-  if(val_cmd->parsed())
-  {
-    auto result = imfwizard::validate_with_photon(val_dir);
-    if(result.valid)
-    {
-      std::cout << "IMP is valid.\n";
-    }
-    else
-    {
-      std::cout << "IMP validation issues:\n";
-    }
-    for(const auto& note : result.notes)
-    {
-      const char* sev = "INFO";
-      if(note.severity == imfwizard::ValidationNote::Severity::error)
-        sev = "ERROR";
-      else if(note.severity == imfwizard::ValidationNote::Severity::warning)
-        sev = "WARN";
-      std::cout << "  [" << sev << "] " << note.message << "\n";
-    }
-    return result.valid ? 0 : 1;
-  }
-
   if(trans_cmd->parsed())
   {
     imfwizard::TranscodeOptions opts;
@@ -997,84 +871,23 @@ int main(int argc, char* argv[])
 
   if(report_cmd->parsed())
   {
-    auto validation = imfwizard::validate_with_photon(rpt_imp_dir);
+    // Validation has moved to dcpdoctor; generate report shell
+    imfwizard::ValidationResult validation;
+    int ret = system(("dcpdoctor validate-imp \"" + rpt_imp_dir + "\" > /dev/null 2>&1").c_str());
+    validation.valid = (ret == 0);
+    if(!validation.valid)
+    {
+      imfwizard::ValidationNote note;
+      note.severity = imfwizard::ValidationNote::Severity::warning;
+      note.message = "dcpdoctor validation returned non-zero (run dcpdoctor validate-imp for details)";
+      validation.notes.push_back(note);
+    }
     imfwizard::QcReportOptions opts;
     opts.imp_dir = rpt_imp_dir;
     opts.validation = validation;
     opts.title = std::filesystem::path(rpt_imp_dir).filename().string();
     imfwizard::write_qc_report(opts, rpt_output);
     std::cout << "QC report written to " << rpt_output << "\n";
-    return 0;
-  }
-
-  if(loudness_cmd->parsed())
-  {
-    if(loud_normalize && !loud_output.empty())
-    {
-      imfwizard::NormalizeOptions opts;
-      opts.input_file = loud_input;
-      opts.output_file = loud_output;
-      opts.target_lufs = loud_target;
-      auto r = imfwizard::normalize_loudness(opts);
-      if(!r.success)
-      {
-        spdlog::error("{}", r.error);
-        return 1;
-      }
-      std::cout << "Normalized to " << loud_output << "\n";
-    }
-    else
-    {
-      auto r = imfwizard::measure_loudness(loud_input);
-      if(!r.success)
-      {
-        spdlog::error("{}", r.error);
-        return 1;
-      }
-      std::cout << "Integrated: " << r.integrated_lufs << " LUFS\n"
-                << "LRA: " << r.loudness_range_lu << " LU\n"
-                << "True Peak: " << r.true_peak_dbtp << " dBTP\n"
-                << "EBU R128: " << (r.compliant_r128 ? "PASS" : "FAIL") << "\n"
-                << "ATSC A/85: " << (r.compliant_atsc ? "PASS" : "FAIL") << "\n";
-    }
-    return 0;
-  }
-
-  if(qc_cmd->parsed())
-  {
-    if(!qc_dir.empty())
-    {
-      imfwizard::FrameQcOptions opts;
-      opts.j2k_dir = qc_dir;
-      opts.max_bitrate_mbps = qc_max;
-      opts.min_bitrate_mbps = qc_min;
-      auto r = imfwizard::analyze_frame_qc(opts);
-      if(!r.success)
-      {
-        spdlog::error("{}", r.error);
-        return 1;
-      }
-      std::cout << "Frames: " << r.total_frames << "\n"
-                << "Avg bitrate: " << r.average_bitrate_mbps << " Mbps\n"
-                << "Peak: " << r.peak_bitrate_mbps << " Mbps\n"
-                << "Over-budget: " << r.over_budget_count << "\n"
-                << "Under-budget: " << r.under_budget_count << "\n";
-    }
-    if(!qc_ref.empty() && !qc_dist.empty())
-    {
-      imfwizard::QualityOptions opts;
-      opts.reference = qc_ref;
-      opts.distorted = qc_dist;
-      auto r = imfwizard::compute_quality(opts);
-      if(!r.success)
-      {
-        spdlog::error("{}", r.error);
-        return 1;
-      }
-      std::cout << "VMAF: " << r.vmaf_score << "\n"
-                << "PSNR: " << r.psnr_avg << " dB\n"
-                << "SSIM: " << r.ssim << "\n";
-    }
     return 0;
   }
 
@@ -1525,52 +1338,6 @@ int main(int argc, char* argv[])
                 << e.src_out << "\n";
     return 0;
   }
-  if(cmp_cmd->parsed())
-  {
-    imfwizard::CompareOptions opts;
-    opts.imp_a = cmp_imp_a;
-    opts.imp_b = cmp_imp_b;
-    if(!cmp_output.empty())
-      opts.output_dir = cmp_output;
-    opts.compute_ssim = cmp_ssim;
-    opts.compute_vmaf = cmp_vmaf;
-    if(!cmp_vmaf_model.empty())
-      opts.vmaf_model = cmp_vmaf_model;
-    opts.generate_html = cmp_html;
-    opts.extract_diff_frames = cmp_extract;
-    opts.start_frame = cmp_start;
-    opts.end_frame = cmp_end;
-    opts.sample_interval = cmp_interval;
-    opts.threshold_psnr = cmp_thresh_psnr;
-    opts.threshold_ssim = cmp_thresh_ssim;
-
-    imfwizard::CompareResult result;
-    namespace fs = std::filesystem;
-    // Support both IMP directories and direct file comparison
-    if(fs::is_regular_file(cmp_imp_a) && fs::is_regular_file(cmp_imp_b))
-      result = imfwizard::compare_files(cmp_imp_a, cmp_imp_b, opts);
-    else
-      result = imfwizard::compare_imps(opts);
-
-    if(!result.error.empty())
-    {
-      std::cerr << "Error: " << result.error << "\n";
-      return 1;
-    }
-    std::cout << "Frames compared: " << result.frames_compared << "\n";
-    std::cout << "Frames different: " << result.frames_different << "\n";
-    std::cout << "Identical: " << (result.identical ? "yes" : "no") << "\n";
-    std::cout << "PSNR: avg=" << result.avg_psnr << " dB, min=" << result.min_psnr << " dB\n";
-    if(cmp_ssim)
-      std::cout << "SSIM: avg=" << result.avg_ssim << ", min=" << result.min_ssim << "\n";
-    if(cmp_vmaf)
-      std::cout << "VMAF: " << result.vmaf_score << "\n";
-    if(!result.csv_path.empty())
-      std::cout << "CSV: " << result.csv_path.string() << "\n";
-    if(!result.html_report_path.empty())
-      std::cout << "HTML: " << result.html_report_path.string() << "\n";
-    return 0;
-  }
   if(plug_cmd->parsed())
   {
     if(!plug_dir.empty())
@@ -1660,80 +1427,6 @@ int main(int argc, char* argv[])
       return 1;
     }
     std::cout << "ACES pipeline applied: " << result.output_dir.string() << "\n";
-    return 0;
-  }
-  if(avsync_cmd->parsed())
-  {
-    imfwizard::AvSyncOptions opts;
-    opts.video_file = avsync_video;
-    opts.audio_file = avsync_audio;
-    auto result = imfwizard::detect_av_sync(opts);
-    if(!result.error.empty())
-    {
-      std::cerr << "Error: " << result.error << "\n";
-      return 1;
-    }
-    std::cout << "Drift: " << result.drift_ms << " ms\n";
-    if(avsync_fix && !avsync_output.empty())
-    {
-      imfwizard::AvSyncFixOptions fix;
-      fix.audio_file = avsync_audio;
-      fix.output_file = avsync_output;
-      fix.trim_samples = result.drift_samples;
-      auto fr = imfwizard::fix_av_sync(fix);
-      if(!fr.error.empty())
-      {
-        std::cerr << "Fix error: " << fr.error << "\n";
-        return 1;
-      }
-      std::cout << "Fixed: " << fr.output_file.string() << "\n";
-    }
-    return 0;
-  }
-  if(comply_cmd->parsed())
-  {
-    imfwizard::ComplianceTarget target = imfwizard::ComplianceTarget::Netflix;
-    if(comply_target == "disney")
-      target = imfwizard::ComplianceTarget::Disney;
-    else if(comply_target == "amazon")
-      target = imfwizard::ComplianceTarget::Amazon;
-    else if(comply_target == "apple")
-      target = imfwizard::ComplianceTarget::Apple;
-    else if(comply_target == "cinema")
-      target = imfwizard::ComplianceTarget::Cinema2K;
-    else if(comply_target == "broadcast")
-      target = imfwizard::ComplianceTarget::BroadcastHD;
-
-    imfwizard::ComplianceOptions copts;
-    copts.imp_dir = comply_imp;
-    copts.target = target;
-    auto result = imfwizard::check_compliance(copts);
-    std::cout << "Target: " << comply_target << "\n";
-    std::cout << "Passed: " << (result.compliant ? "YES" : "NO") << "\n";
-    for(auto& c : result.checks)
-    {
-      std::cout << "  [" << (c.passed ? "PASS" : "FAIL") << "] " << c.rule;
-      if(!c.passed)
-        std::cout << " — " << c.description;
-      std::cout << "\n";
-    }
-    return 0;
-  }
-  if(qcr_cmd->parsed())
-  {
-    imfwizard::DetailedQcOptions opts;
-    opts.imp_dir = qcr_imp;
-    opts.output_file = qcr_output;
-    opts.title = qcr_title;
-    opts.client = qcr_client;
-    opts.include_loudness = qcr_loudness;
-    auto result = imfwizard::generate_detailed_qc(opts);
-    if(!result.error.empty())
-    {
-      std::cerr << "Error: " << result.error << "\n";
-      return 1;
-    }
-    std::cout << "QC report generated: " << result.output_file.string() << "\n";
     return 0;
   }
   if(ann_cmd->parsed())
@@ -2131,29 +1824,6 @@ int main(int argc, char* argv[])
     return 0;
   }
 
-  // === Schema-validate handler ===
-  if(schemaval_cmd->parsed())
-  {
-    imfwizard::SchemaValidateOptions opts;
-    opts.imp_dir = schemaval_imp;
-    opts.schema_dir = schemaval_schema_dir;
-    opts.strict = schemaval_strict;
-    opts.validate_cpl = !schemaval_no_cpl;
-    opts.validate_pkl = !schemaval_no_pkl;
-    opts.validate_assetmap = !schemaval_no_am;
-
-    auto result = imfwizard::validate_against_schema(opts);
-    for(const auto& err : result.errors)
-    {
-      std::string prefix = err.is_warning ? "WARNING" : "ERROR";
-      std::cerr << prefix << ": " << err.file << ":" << err.line << ": " << err.message << "\n";
-    }
-    if(!result.schema_version.empty())
-      std::cout << "Schema: " << result.schema_version << "\n";
-    std::cout << (result.valid ? "PASS" : "FAIL") << " (" << result.errors.size() << " issue(s))\n";
-    return result.valid ? 0 : 1;
-  }
-
   // === PDF report handler ===
   if(pdfreport_cmd->parsed())
   {
@@ -2167,8 +1837,17 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    // Run validation first for the report
-    auto validation = imfwizard::validate_with_photon(pdfreport_imp);
+    // Run validation via dcpdoctor
+    imfwizard::ValidationResult validation;
+    int vret = system(("dcpdoctor validate-imp \"" + pdfreport_imp + "\" > /dev/null 2>&1").c_str());
+    validation.valid = (vret == 0);
+    if(!validation.valid)
+    {
+      imfwizard::ValidationNote note;
+      note.severity = imfwizard::ValidationNote::Severity::warning;
+      note.message = "dcpdoctor validation returned non-zero (run dcpdoctor validate-imp for details)";
+      validation.notes.push_back(note);
+    }
 
     imfwizard::PdfReportOptions opts;
     opts.imp_dir = pdfreport_imp;
@@ -2217,47 +1896,6 @@ int main(int argc, char* argv[])
     }
     std::cout << "Converted " << result.cue_count << " cues -> " << result.output_path.string() << "\n";
     return 0;
-  }
-
-  // === HDR validate handler ===
-  if(hdrval_cmd->parsed())
-  {
-    imfwizard::HdrValidateOptions opts;
-    opts.video_path = hdrval_video;
-    opts.target_spec = hdrval_spec;
-    opts.expected_max_cll = hdrval_max_cll;
-    opts.expected_max_fall = hdrval_max_fall;
-    opts.expected_bit_depth = hdrval_bit_depth;
-
-    if(hdrval_spec == "hdr10")
-    {
-      opts.expected_transfer = imfwizard::TransferFunction::PQ;
-      opts.expected_colorimetry = imfwizard::Colorimetry::BT2020;
-    }
-    else if(hdrval_spec == "hlg")
-    {
-      opts.expected_transfer = imfwizard::TransferFunction::HLG;
-      opts.expected_colorimetry = imfwizard::Colorimetry::BT2020;
-    }
-
-    auto result = imfwizard::validate_hdr_metadata(opts);
-    if(!result.success)
-    {
-      std::cerr << "Error: " << result.error << "\n";
-      return 1;
-    }
-
-    std::cout << "HDR Validation: " << (result.valid ? "PASS" : "FAIL") << "\n";
-    if(!result.issues.empty())
-    {
-      std::cout << "\nIssues:\n";
-      for(const auto& issue : result.issues)
-      {
-        std::cout << "  [" << issue.severity << "] " << issue.field
-                  << ": expected " << issue.expected << ", got " << issue.actual << "\n";
-      }
-    }
-    return result.valid ? 0 : 1;
   }
 
   // === Timecode convert handler ===

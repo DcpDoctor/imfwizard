@@ -1,5 +1,4 @@
 #include "imfwizard/watch.h"
-#include "imfwizard/hdr_validate.h"
 #include "imfwizard/imp.h"
 #include "imfwizard/portable.h"
 #include "imfwizard/validate.h"
@@ -141,34 +140,52 @@ static void run_action_pipeline(const WatchConfig& config, const fs::path& conte
     }
     case WatchAction::AutoQc:
     case WatchAction::ChecksumVerify:
+    case WatchAction::Validate:
+    case WatchAction::HdrValidate:
       // These features have been moved to dcpdoctor.
-      // Use: dcpdoctor auto-qc, dcpdoctor checksum-verify
-      msg = "Use dcpdoctor for this action";
-      break;
-    case WatchAction::Validate: {
-      auto vr = validate_with_photon(content_dir);
-      ok = vr.valid;
-      msg = ok ? "Valid" : "Validation failed: " + std::to_string(vr.notes.size()) + " notes";
-      break;
-    }
-    case WatchAction::HdrValidate: {
-      for(const auto& f : fs::directory_iterator(content_dir))
+      // Use: dcpdoctor validate-imp, dcpdoctor auto-qc, dcpdoctor hdr-validate, etc.
       {
-        auto ext = f.path().extension().string();
-        if(ext == ".mxf" || ext == ".mp4" || ext == ".mov")
+        std::string dcpdoctor_cmd;
+        if(action == WatchAction::Validate)
+          dcpdoctor_cmd = "dcpdoctor validate-imp \"" + content_dir.string() + "\" 2>&1";
+        else if(action == WatchAction::HdrValidate)
         {
-          HdrValidateOptions hdr_opts;
-          hdr_opts.video_path = f.path();
-          auto hr = validate_hdr_metadata(hdr_opts);
-          ok = hr.valid;
-          msg = ok ? "HDR metadata valid" : "HDR issues: " + std::to_string(hr.issues.size());
-          break;
+          // Find first video file
+          for(const auto& f : fs::directory_iterator(content_dir))
+          {
+            auto ext = f.path().extension().string();
+            if(ext == ".mxf" || ext == ".mp4" || ext == ".mov")
+            {
+              dcpdoctor_cmd = "dcpdoctor hdr-validate \"" + f.path().string() + "\" -s hdr10 2>&1";
+              break;
+            }
+          }
         }
+        else if(action == WatchAction::AutoQc)
+        {
+          for(const auto& f : fs::directory_iterator(content_dir))
+          {
+            auto ext = f.path().extension().string();
+            if(ext == ".mxf" || ext == ".mp4" || ext == ".mov")
+            {
+              dcpdoctor_cmd = "dcpdoctor auto-qc -v \"" + f.path().string() + "\" 2>&1";
+              break;
+            }
+          }
+        }
+        else if(action == WatchAction::ChecksumVerify)
+          dcpdoctor_cmd = "dcpdoctor checksum-verify \"" + content_dir.string() + "\" 2>&1";
+
+        if(!dcpdoctor_cmd.empty())
+        {
+          int ret = system(dcpdoctor_cmd.c_str());
+          ok = (ret == 0);
+          msg = ok ? "dcpdoctor check passed" : "dcpdoctor check failed (exit " + std::to_string(ret) + ")";
+        }
+        else
+          msg = "No suitable file found for dcpdoctor check";
       }
-      if(msg.empty())
-        msg = "No video file found for HDR check";
       break;
-    }
     case WatchAction::Custom: {
       if(config.custom_command.empty())
       {
