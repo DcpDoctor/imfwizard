@@ -49,6 +49,12 @@
 #include "imfwizard/shell_completion.h"
 #include "imfwizard/schema_validate.h"
 #include "imfwizard/pdf_report.h"
+#include "imfwizard/auto_qc.h"
+#include "imfwizard/subtitle_convert.h"
+#include "imfwizard/mxf_unwrap.h"
+#include "imfwizard/hdr_validate.h"
+#include "imfwizard/checksum_verify.h"
+#include "imfwizard/timecode.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <cinttypes>
@@ -681,6 +687,87 @@ int main(int argc, char* argv[])
   pdfreport_cmd->add_option("--output,-o", pdfreport_output, "Output PDF path");
   pdfreport_cmd->add_option("--title", pdfreport_title, "Report title");
   pdfreport_cmd->add_option("--author", pdfreport_author, "Report author")->default_val("IMF Wizard");
+
+  // === Auto QC subcommand ===
+  auto* autoqc_cmd = app.add_subcommand("auto-qc", "Automated QC: black/freeze/silence/clipping detection");
+  std::string autoqc_video, autoqc_audio;
+  uint32_t autoqc_fps_num = 24, autoqc_fps_den = 1;
+  bool autoqc_json = false, autoqc_no_black = false, autoqc_no_freeze = false;
+  bool autoqc_no_silence = false, autoqc_no_clipping = false;
+  autoqc_cmd->add_option("--video,-v", autoqc_video, "Video file or J2K directory");
+  autoqc_cmd->add_option("--audio,-a", autoqc_audio, "Audio file (WAV/MXF)");
+  autoqc_cmd->add_option("--fps-num", autoqc_fps_num, "FPS numerator")->default_val(24);
+  autoqc_cmd->add_option("--fps-den", autoqc_fps_den, "FPS denominator")->default_val(1);
+  autoqc_cmd->add_flag("--json", autoqc_json, "Output results as JSON");
+  autoqc_cmd->add_flag("--no-black", autoqc_no_black, "Skip black frame detection");
+  autoqc_cmd->add_flag("--no-freeze", autoqc_no_freeze, "Skip freeze frame detection");
+  autoqc_cmd->add_flag("--no-silence", autoqc_no_silence, "Skip silence detection");
+  autoqc_cmd->add_flag("--no-clipping", autoqc_no_clipping, "Skip clipping detection");
+
+  // === Subtitle convert subcommand ===
+  auto* subconv_cmd = app.add_subcommand("subtitle-convert", "Convert between subtitle formats (SRT/TTML/WebVTT/SCC/STL/IMSC)");
+  std::string subconv_input, subconv_output, subconv_format, subconv_lang = "en";
+  double subconv_fps = 24.0, subconv_offset = 0.0;
+  subconv_cmd->add_option("--input,-i", subconv_input, "Input subtitle file")->required();
+  subconv_cmd->add_option("--output,-o", subconv_output, "Output file path")->required();
+  subconv_cmd->add_option("--format,-f", subconv_format, "Target format (srt/ttml/webvtt/imsc)")->required();
+  subconv_cmd->add_option("--lang", subconv_lang, "Language code")->default_val("en");
+  subconv_cmd->add_option("--fps", subconv_fps, "Frame rate (for SCC timecodes)")->default_val(24.0);
+  subconv_cmd->add_option("--offset", subconv_offset, "Time offset in seconds");
+
+  // === MXF unwrap subcommand ===
+  auto* mxfunwrap_cmd = app.add_subcommand("mxf-unwrap", "Extract essence from MXF container");
+  std::string mxfunwrap_input, mxfunwrap_output;
+  bool mxfunwrap_video_only = false, mxfunwrap_audio_only = false;
+  uint32_t mxfunwrap_start = 0, mxfunwrap_end = 0;
+  mxfunwrap_cmd->add_option("--input,-i", mxfunwrap_input, "MXF file")->required();
+  mxfunwrap_cmd->add_option("--output,-o", mxfunwrap_output, "Output directory")->required();
+  mxfunwrap_cmd->add_flag("--video-only", mxfunwrap_video_only, "Extract only video");
+  mxfunwrap_cmd->add_flag("--audio-only", mxfunwrap_audio_only, "Extract only audio");
+  mxfunwrap_cmd->add_option("--start", mxfunwrap_start, "Start frame");
+  mxfunwrap_cmd->add_option("--end", mxfunwrap_end, "End frame");
+
+  // === MXF probe subcommand ===
+  auto* mxfprobe_cmd = app.add_subcommand("mxf-probe", "Display MXF track information");
+  std::string mxfprobe_input;
+  mxfprobe_cmd->add_option("--input,-i", mxfprobe_input, "MXF file")->required();
+
+  // === HDR validate subcommand ===
+  auto* hdrval_cmd = app.add_subcommand("hdr-validate", "Validate HDR metadata against spec");
+  std::string hdrval_video, hdrval_spec = "hdr10";
+  uint16_t hdrval_max_cll = 0, hdrval_max_fall = 0, hdrval_bit_depth = 10;
+  hdrval_cmd->add_option("--input,-i", hdrval_video, "Video file to probe")->required();
+  hdrval_cmd->add_option("--spec,-s", hdrval_spec, "Target spec (hdr10/hlg/dolby_vision)")->default_val("hdr10");
+  hdrval_cmd->add_option("--max-cll", hdrval_max_cll, "Expected max content light level");
+  hdrval_cmd->add_option("--max-fall", hdrval_max_fall, "Expected max frame-average light level");
+  hdrval_cmd->add_option("--bit-depth", hdrval_bit_depth, "Expected bit depth")->default_val(10);
+
+  // === Checksum verify subcommand ===
+  auto* cksum_cmd = app.add_subcommand("checksum-verify", "Verify IMP asset checksums against PKL");
+  std::string cksum_imp;
+  bool cksum_sizes_only = false, cksum_stop_first = false;
+  cksum_cmd->add_option("--imp,-i", cksum_imp, "IMP directory")->required();
+  cksum_cmd->add_flag("--sizes-only", cksum_sizes_only, "Only check file sizes (skip hash computation)");
+  cksum_cmd->add_flag("--stop-first", cksum_stop_first, "Stop on first error");
+
+  // === Timecode convert subcommand ===
+  auto* tcconv_cmd = app.add_subcommand("timecode-convert", "Convert timecode between frame rates");
+  std::string tcconv_input;
+  double tcconv_src_fps = 24.0, tcconv_dst_fps = 25.0;
+  bool tcconv_src_drop = false, tcconv_dst_drop = false;
+  tcconv_cmd->add_option("--tc,-t", tcconv_input, "Timecode to convert (HH:MM:SS:FF)")->required();
+  tcconv_cmd->add_option("--src-fps", tcconv_src_fps, "Source frame rate")->default_val(24.0);
+  tcconv_cmd->add_option("--dst-fps", tcconv_dst_fps, "Target frame rate")->default_val(25.0);
+  tcconv_cmd->add_flag("--src-drop", tcconv_src_drop, "Source uses drop-frame");
+  tcconv_cmd->add_flag("--dst-drop", tcconv_dst_drop, "Target uses drop-frame");
+
+  // === Timecode drift subcommand ===
+  auto* tcdrift_cmd = app.add_subcommand("timecode-drift", "Check timecode continuity in a video");
+  std::string tcdrift_video, tcdrift_expected;
+  double tcdrift_fps = 24.0;
+  tcdrift_cmd->add_option("--input,-i", tcdrift_video, "Video file")->required();
+  tcdrift_cmd->add_option("--expected,-e", tcdrift_expected, "Expected start timecode");
+  tcdrift_cmd->add_option("--fps", tcdrift_fps, "Expected frame rate")->default_val(24.0);
 
   CLI11_PARSE(app, argc, argv);
 
@@ -2065,6 +2152,245 @@ int main(int argc, char* argv[])
     }
     std::cerr << "Error: " << result.error << "\n";
     return 1;
+  }
+
+  // === Auto QC handler ===
+  if(autoqc_cmd->parsed())
+  {
+    if(autoqc_video.empty() && autoqc_audio.empty())
+    {
+      std::cerr << "Error: specify --video and/or --audio\n";
+      return 1;
+    }
+    imfwizard::AutoQcOptions opts;
+    opts.video_path = autoqc_video;
+    opts.audio_path = autoqc_audio;
+    opts.fps_num = autoqc_fps_num;
+    opts.fps_den = autoqc_fps_den;
+    opts.detect_black = !autoqc_no_black;
+    opts.detect_freeze = !autoqc_no_freeze;
+    opts.detect_silence = !autoqc_no_silence;
+    opts.detect_clipping = !autoqc_no_clipping;
+    opts.json_output = autoqc_json;
+
+    auto result = imfwizard::run_auto_qc(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+
+    if(autoqc_json)
+    {
+      std::cout << imfwizard::auto_qc_to_json(result);
+    }
+    else
+    {
+      std::cout << "Auto QC Results: " << result.issues.size() << " issues found\n";
+      std::cout << "  Errors: " << result.error_count << "\n";
+      std::cout << "  Warnings: " << result.warning_count << "\n\n";
+      for(const auto& issue : result.issues)
+      {
+        std::cout << "  [" << issue.severity << "] " << issue.description << "\n";
+      }
+    }
+    return (result.error_count > 0) ? 1 : 0;
+  }
+
+  // === Subtitle convert handler ===
+  if(subconv_cmd->parsed())
+  {
+    imfwizard::SubtitleConvertOptions opts;
+    opts.input = subconv_input;
+    opts.output = subconv_output;
+    opts.target_format = imfwizard::parse_subtitle_format(subconv_format);
+    opts.language = subconv_lang;
+    opts.fps = subconv_fps;
+    opts.offset_sec = subconv_offset;
+
+    if(opts.target_format == imfwizard::SubtitleFormat::Unknown)
+    {
+      std::cerr << "Error: unknown target format '" << subconv_format << "'\n";
+      std::cerr << "Valid formats: srt, ttml, webvtt, imsc\n";
+      return 1;
+    }
+
+    auto result = imfwizard::convert_subtitles(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Converted " << result.cue_count << " cues -> " << result.output_path.string() << "\n";
+    return 0;
+  }
+
+  // === MXF unwrap handler ===
+  if(mxfunwrap_cmd->parsed())
+  {
+    imfwizard::MxfUnwrapOptions opts;
+    opts.input = mxfunwrap_input;
+    opts.output_dir = mxfunwrap_output;
+    opts.extract_video = !mxfunwrap_audio_only;
+    opts.extract_audio = !mxfunwrap_video_only;
+    opts.start_frame = mxfunwrap_start;
+    opts.end_frame = mxfunwrap_end;
+
+    auto result = imfwizard::unwrap_mxf(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Extracted " << result.extracted_files.size() << " files";
+    if(result.frames_extracted > 0)
+      std::cout << " (" << result.frames_extracted << " video frames)";
+    std::cout << "\n";
+    return 0;
+  }
+
+  // === MXF probe handler ===
+  if(mxfprobe_cmd->parsed())
+  {
+    auto result = imfwizard::probe_mxf_detailed(mxfprobe_input);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Container: " << result.container_label << "\n";
+    std::cout << "File size: " << result.file_size << " bytes\n";
+    std::cout << "Tracks: " << result.tracks.size() << "\n\n";
+    for(size_t i = 0; i < result.tracks.size(); ++i)
+    {
+      const auto& t = result.tracks[i];
+      std::cout << "  Track " << (i + 1) << ": " << t.essence_type << " (" << t.codec << ")\n";
+      if(t.width > 0)
+        std::cout << "    Resolution: " << t.width << "x" << t.height << "\n";
+      if(t.channels > 0)
+        std::cout << "    Channels: " << t.channels << " @ " << t.sample_rate << " Hz\n";
+      if(t.duration > 0)
+        std::cout << "    Duration: " << t.duration << " edit units\n";
+      if(t.bit_depth > 0)
+        std::cout << "    Bit depth: " << t.bit_depth << "\n";
+    }
+    return 0;
+  }
+
+  // === HDR validate handler ===
+  if(hdrval_cmd->parsed())
+  {
+    imfwizard::HdrValidateOptions opts;
+    opts.video_path = hdrval_video;
+    opts.target_spec = hdrval_spec;
+    opts.expected_max_cll = hdrval_max_cll;
+    opts.expected_max_fall = hdrval_max_fall;
+    opts.expected_bit_depth = hdrval_bit_depth;
+
+    if(hdrval_spec == "hdr10")
+    {
+      opts.expected_transfer = imfwizard::TransferFunction::PQ;
+      opts.expected_colorimetry = imfwizard::Colorimetry::BT2020;
+    }
+    else if(hdrval_spec == "hlg")
+    {
+      opts.expected_transfer = imfwizard::TransferFunction::HLG;
+      opts.expected_colorimetry = imfwizard::Colorimetry::BT2020;
+    }
+
+    auto result = imfwizard::validate_hdr_metadata(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+
+    std::cout << "HDR Validation: " << (result.valid ? "PASS" : "FAIL") << "\n";
+    if(!result.issues.empty())
+    {
+      std::cout << "\nIssues:\n";
+      for(const auto& issue : result.issues)
+      {
+        std::cout << "  [" << issue.severity << "] " << issue.field
+                  << ": expected " << issue.expected << ", got " << issue.actual << "\n";
+      }
+    }
+    return result.valid ? 0 : 1;
+  }
+
+  // === Checksum verify handler ===
+  if(cksum_cmd->parsed())
+  {
+    imfwizard::ChecksumVerifyOptions opts;
+    opts.imp_dir = cksum_imp;
+    opts.verify_hashes = !cksum_sizes_only;
+    opts.stop_on_first_error = cksum_stop_first;
+
+    auto result = imfwizard::verify_imp_checksums(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+
+    std::cout << "Checksum Verification: " << (result.all_valid ? "PASS" : "FAIL") << "\n";
+    std::cout << "  Total assets: " << result.total_assets << "\n";
+    std::cout << "  Verified OK: " << result.verified_ok << "\n";
+    if(result.hash_mismatches > 0)
+      std::cout << "  Hash mismatches: " << result.hash_mismatches << "\n";
+    if(result.size_mismatches > 0)
+      std::cout << "  Size mismatches: " << result.size_mismatches << "\n";
+    if(result.missing_files > 0)
+      std::cout << "  Missing files: " << result.missing_files << "\n";
+    return result.all_valid ? 0 : 1;
+  }
+
+  // === Timecode convert handler ===
+  if(tcconv_cmd->parsed())
+  {
+    imfwizard::TimecodeConvertOptions opts;
+    opts.input_tc = tcconv_input;
+    opts.source_fps = tcconv_src_fps;
+    opts.target_fps = tcconv_dst_fps;
+    opts.source_drop = tcconv_src_drop;
+    opts.target_drop = tcconv_dst_drop;
+
+    auto result = imfwizard::convert_timecode(opts);
+    std::cout << tcconv_input << " @ " << tcconv_src_fps << "fps -> "
+              << result.to_string() << " @ " << tcconv_dst_fps << "fps\n";
+    return 0;
+  }
+
+  // === Timecode drift handler ===
+  if(tcdrift_cmd->parsed())
+  {
+    imfwizard::TimecodeDriftOptions opts;
+    opts.video_path = tcdrift_video;
+    opts.expected_start_tc = tcdrift_expected;
+    opts.expected_fps = tcdrift_fps;
+
+    auto result = imfwizard::check_timecode_drift(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+
+    if(!result.has_timecode)
+    {
+      std::cout << "No timecode track found in video\n";
+      return 0;
+    }
+
+    std::cout << "Detected TC: " << result.detected_start_tc << "\n";
+    std::cout << "Detected FPS: " << result.detected_fps << "\n";
+    if(!tcdrift_expected.empty())
+    {
+      std::cout << "Drift: " << result.max_drift_frames << " frames ("
+                << result.max_drift_seconds << "s)\n";
+      std::cout << "Within tolerance: " << (result.within_tolerance ? "YES" : "NO") << "\n";
+    }
+    return result.within_tolerance ? 0 : 1;
   }
 
   return 0;
