@@ -1,4 +1,5 @@
 #include "imfwizard/transcode.h"
+#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 #include <array>
 #include <cstdio>
@@ -30,12 +31,12 @@ static std::string exec_cmd(const std::string& cmd)
 {
   std::array<char, 4096> buffer;
   std::string result;
-  FILE* pipe = popen(cmd.c_str(), "r");
+  FILE* pipe = portable_popen(cmd.c_str(), "r");
   if(!pipe)
     return {};
   while(fgets(buffer.data(), buffer.size(), pipe))
     result += buffer.data();
-  pclose(pipe);
+  portable_pclose(pipe);
   // Trim trailing whitespace
   while(!result.empty() && (result.back() == '\n' || result.back() == '\r'))
     result.pop_back();

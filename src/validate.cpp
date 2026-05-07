@@ -1,5 +1,7 @@
 #include "imfwizard/validate.h"
+#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <sstream>
@@ -52,7 +54,7 @@ ValidationResult validate_with_photon(const std::filesystem::path& imp_dir)
   std::array<char, 4096> buffer;
   std::string output;
 
-  FILE* pipe = popen(cmd.c_str(), "r");
+  FILE* pipe = portable_popen(cmd.c_str(), "r");
   if(!pipe)
   {
     result.notes.push_back({ValidationNote::Severity::error, "Failed to run Photon", ""});
@@ -62,7 +64,7 @@ ValidationResult validate_with_photon(const std::filesystem::path& imp_dir)
   while(fgets(buffer.data(), buffer.size(), pipe) != nullptr)
     output += buffer.data();
 
-  int ret = pclose(pipe);
+  int ret = portable_pclose(pipe);
   result.valid = (ret == 0);
 
   // Parse Photon output for errors/warnings

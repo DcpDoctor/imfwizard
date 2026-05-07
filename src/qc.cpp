@@ -1,4 +1,5 @@
 #include "imfwizard/qc.h"
+#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <array>
@@ -83,12 +84,12 @@ static std::string exec_cmd(const std::string& cmd)
 {
   std::array<char, 4096> buffer;
   std::string result;
-  FILE* pipe = popen(cmd.c_str(), "r");
+  FILE* pipe = portable_popen(cmd.c_str(), "r");
   if(!pipe)
     return {};
   while(fgets(buffer.data(), buffer.size(), pipe))
     result += buffer.data();
-  pclose(pipe);
+  portable_pclose(pipe);
   return result;
 }
 
