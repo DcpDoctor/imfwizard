@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <cstdint>
 #include <vector>
@@ -27,6 +28,7 @@ struct TranscodeOptions
   uint32_t start_frame = 0; // 0 = from beginning
   uint32_t end_frame = 0; // 0 = to end
   uint32_t threads = 0; // 0 = auto
+  std::function<void(uint32_t current, uint32_t total)> on_progress; // Progress callback
 };
 
 struct TranscodeResult

@@ -65,7 +65,8 @@ add_library(imfwizard_core STATIC
     src/accessibility.cpp
     src/watermark.cpp
     src/aspera.cpp
-    src/uuid.cpp)
+    src/uuid.cpp
+    src/job_queue.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include

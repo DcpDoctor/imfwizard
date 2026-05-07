@@ -16,6 +16,7 @@
 #include "imfwizard/watermark.h"
 #include "imfwizard/aspera.h"
 #include "imfwizard/profiles.h"
+#include "imfwizard/job_queue.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <filesystem>
@@ -231,6 +232,35 @@ int main(int argc, char* argv[])
   auto* profiles_cmd = app.add_subcommand("profiles", "List available delivery profiles");
   std::string prof_name;
   profiles_cmd->add_option("-n,--name", prof_name, "Show details for specific profile");
+
+  // === BATCH subcommand ===
+  auto* batch_cmd = app.add_subcommand("batch", "Manage the job queue");
+  batch_cmd->require_subcommand(1);
+  auto* batch_list_cmd = batch_cmd->add_subcommand("list", "List all jobs");
+  auto* batch_add_cmd = batch_cmd->add_subcommand("add", "Submit a new job");
+  std::string batch_type, batch_desc;
+  std::vector<std::string> batch_args;
+  uint64_t batch_dep = 0;
+  batch_add_cmd->add_option("-T,--type", batch_type, "Job type (transcode/encode/create/validate/loudness/qc)")->required();
+  batch_add_cmd->add_option("-d,--description", batch_desc, "Job description")->required();
+  batch_add_cmd->add_option("--depends-on", batch_dep, "Depend on job ID");
+  batch_add_cmd->add_option("args", batch_args, "Arguments to pass to imfwizard");
+  auto* batch_cancel_cmd = batch_cmd->add_subcommand("cancel", "Cancel a queued job");
+  uint64_t batch_cancel_id = 0;
+  batch_cancel_cmd->add_option("id", batch_cancel_id, "Job ID to cancel")->required();
+  auto* batch_status_cmd = batch_cmd->add_subcommand("status", "Show status of a job");
+  uint64_t batch_status_id = 0;
+  batch_status_cmd->add_option("id", batch_status_id, "Job ID")->required();
+  auto* batch_pause_cmd = batch_cmd->add_subcommand("pause", "Pause job processing");
+  auto* batch_resume_cmd = batch_cmd->add_subcommand("resume", "Resume job processing");
+  auto* batch_priority_cmd = batch_cmd->add_subcommand("priority", "Set job priority");
+  uint64_t batch_pri_id = 0;
+  int batch_pri_val = 0;
+  batch_priority_cmd->add_option("id", batch_pri_id, "Job ID")->required();
+  batch_priority_cmd->add_option("priority", batch_pri_val, "Priority (higher = first)")->required();
+
+  // === DAEMON subcommand ===
+  auto* daemon_cmd = app.add_subcommand("daemon", "Run the job queue daemon");
 
   CLI11_PARSE(app, argc, argv);
 
@@ -648,6 +678,131 @@ int main(int argc, char* argv[])
                 << "  Signing required: " << (p.require_signing ? "yes" : "no") << "\n";
     }
     return 0;
+  }
+
+  if(daemon_cmd->parsed())
+  {
+    imfwizard::JobQueueDaemon daemon;
+    return daemon.run();
+  }
+
+  if(batch_cmd->parsed())
+  {
+    imfwizard::JobQueueClient client;
+
+    if(batch_list_cmd->parsed())
+    {
+      if(!client.is_daemon_running())
+      {
+        std::cerr << "Daemon not running. Start with: imfwizard daemon\n";
+        return 1;
+      }
+      auto jobs = client.list();
+      if(jobs.empty())
+      {
+        std::cout << "No jobs in queue.\n";
+        return 0;
+      }
+      std::cout << "ID  State      Progress  Type       Description\n";
+      std::cout << "--- ---------- --------- ---------- -----------\n";
+      for(auto& j : jobs)
+      {
+        char line[256];
+        snprintf(line, sizeof(line), "%-3lu %-10s %5.0f%%    %-10s %s\n",
+                 j.id, imfwizard::job_state_to_string(j.state).c_str(),
+                 j.progress, imfwizard::job_type_to_string(j.type).c_str(),
+                 j.description.c_str());
+        std::cout << line;
+      }
+      return 0;
+    }
+
+    if(batch_add_cmd->parsed())
+    {
+      if(!client.is_daemon_running())
+      {
+        std::cerr << "Daemon not running. Start with: imfwizard daemon\n";
+        return 1;
+      }
+      std::optional<uint64_t> dep;
+      if(batch_dep > 0) dep = batch_dep;
+      auto id = client.submit(imfwizard::job_type_from_string(batch_type),
+                              batch_desc, batch_args, dep);
+      if(id)
+        std::cout << "Job " << *id << " submitted\n";
+      else
+      {
+        std::cerr << "Failed to submit job\n";
+        return 1;
+      }
+      return 0;
+    }
+
+    if(batch_cancel_cmd->parsed())
+    {
+      if(client.cancel(batch_cancel_id))
+        std::cout << "Job " << batch_cancel_id << " cancelled\n";
+      else
+      {
+        std::cerr << "Failed to cancel job " << batch_cancel_id << "\n";
+        return 1;
+      }
+      return 0;
+    }
+
+    if(batch_status_cmd->parsed())
+    {
+      auto job = client.status(batch_status_id);
+      if(job)
+      {
+        std::cout << "Job " << job->id << ": " << imfwizard::job_state_to_string(job->state)
+                  << " (" << job->progress << "%) — " << job->description << "\n";
+        if(!job->error.empty())
+          std::cout << "  Error: " << job->error << "\n";
+      }
+      else
+      {
+        std::cerr << "Job " << batch_status_id << " not found\n";
+        return 1;
+      }
+      return 0;
+    }
+
+    if(batch_pause_cmd->parsed())
+    {
+      if(client.pause())
+        std::cout << "Queue paused\n";
+      else
+      {
+        std::cerr << "Failed to pause (daemon not running?)\n";
+        return 1;
+      }
+      return 0;
+    }
+
+    if(batch_resume_cmd->parsed())
+    {
+      if(client.resume())
+        std::cout << "Queue resumed\n";
+      else
+      {
+        std::cerr << "Failed to resume (daemon not running?)\n";
+        return 1;
+      }
+      return 0;
+    }
+
+    if(batch_priority_cmd->parsed())
+    {
+      if(client.set_priority(batch_pri_id, batch_pri_val))
+        std::cout << "Job " << batch_pri_id << " priority set to " << batch_pri_val << "\n";
+      else
+      {
+        std::cerr << "Failed to set priority\n";
+        return 1;
+      }
+      return 0;
+    }
   }
 
   return 0;

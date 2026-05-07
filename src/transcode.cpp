@@ -141,8 +141,18 @@ TranscodeResult transcode_to_sequence(const TranscodeOptions& opts)
     ext = "png";
   }
 
+  // Get total frame count for progress reporting
+  uint32_t total_frames = 0;
+  if(ffprobe_available())
+  {
+    auto frames_str = exec_cmd("ffprobe -v error -count_frames -select_streams v:0 "
+                               "-show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 " +
+                               opts.input_file.string() + " 2>/dev/null");
+    try { total_frames = static_cast<uint32_t>(std::stoul(frames_str)); } catch(...) {}
+  }
+
   std::ostringstream cmd;
-  cmd << "ffmpeg -y -i " << opts.input_file.string();
+  cmd << "ffmpeg -y -progress pipe:1 -i " << opts.input_file.string();
 
   if(opts.start_frame > 0 && result.fps > 0)
     cmd << " -ss " << (opts.start_frame / result.fps);
@@ -156,11 +166,51 @@ TranscodeResult transcode_to_sequence(const TranscodeOptions& opts)
     cmd << " -threads " << opts.threads;
 
   auto output_pattern = opts.output_dir / ("frame_%06d." + ext);
-  cmd << " " << output_pattern.string() << " 2>&1";
+  cmd << " " << output_pattern.string() << " 2>/dev/null";
 
   spdlog::info("Transcoding: {}", cmd.str());
 
-  int ret = system(cmd.str().c_str());
+  // Use popen to read progress output
+  FILE* pipe = portable_popen(cmd.str().c_str(), "r");
+  if (!pipe)
+  {
+    result.error = "Failed to start ffmpeg";
+    return result;
+  }
+
+  char line[256];
+  uint32_t last_reported_pct = 0;
+  while (fgets(line, sizeof(line), pipe))
+  {
+    std::string l(line);
+    // ffmpeg -progress outputs "frame=N" lines
+    if (l.find("frame=") == 0)
+    {
+      try
+      {
+        uint32_t frame = static_cast<uint32_t>(std::stoul(l.substr(6)));
+        if (total_frames > 0)
+        {
+          uint32_t pct = (frame * 100) / total_frames;
+          if (pct > last_reported_pct)
+          {
+            last_reported_pct = pct;
+            spdlog::info("Progress: {}% ({}/{} frames)", pct, frame, total_frames);
+            if (opts.on_progress)
+              opts.on_progress(frame, total_frames);
+          }
+        }
+        else
+        {
+          if (frame % 100 == 0)
+            spdlog::info("Transcoding frame {}...", frame);
+        }
+      }
+      catch(...) {}
+    }
+  }
+
+  int ret = portable_pclose(pipe);
   if(ret != 0)
   {
     result.error = "ffmpeg exited with code " + std::to_string(ret);

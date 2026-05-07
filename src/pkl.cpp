@@ -1,6 +1,7 @@
 #include "imfwizard/pkl.h"
 #include "imfwizard/uuid.h"
 #include "imfwizard/hash.h"
+#include "imfwizard/portable.h"
 #include <libxml/tree.h>
 #include <spdlog/spdlog.h>
 #include <ctime>
@@ -27,7 +28,7 @@ PklResult generate_pkl(const PklOptions& opts, const std::filesystem::path& outp
   // IssueDate in ISO 8601
   time_t now = time(nullptr);
   struct tm tm_buf;
-  gmtime_r(&now, &tm_buf);
+  portable_gmtime(&now, &tm_buf);
   char date_buf[64];
   strftime(date_buf, sizeof(date_buf), "%Y-%m-%dT%H:%M:%S+00:00", &tm_buf);
   xmlNewChild(root, nullptr, BAD_CAST "IssueDate", BAD_CAST date_buf);

@@ -19,6 +19,7 @@
       <button data-page="transcode-page">Transcode</button>
       <button data-page="validate-page">Validate</button>
       <button data-page="preview-page">Preview</button>
+      <button data-page="jobs-page">Jobs</button>
       <span class="nav-spacer"></span>
       <button id="theme-toggle" title="Toggle dark/light theme">🌙</button>
     </nav>
@@ -112,6 +113,7 @@
             </div>
           </div>
           <button class="btn-primary" id="tc-start">Transcode</button>
+          <button class="btn-secondary" id="tc-queue">Add to Queue</button>
           <pre id="tc-log" style="margin-top:1rem; display:none;"></pre>
         </section>
       </section>
@@ -149,6 +151,56 @@
             <div id="waveform-container">
               <canvas id="waveform-canvas" width="1920" height="120"></canvas>
             </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" id="jobs-page">
+        <section class="panel">
+          <h2>Job Queue</h2>
+          <div class="jobs-toolbar">
+            <button id="jobs-refresh" class="btn-secondary">Refresh</button>
+            <button id="jobs-start-daemon" class="btn-primary">Start Daemon</button>
+            <span id="jobs-daemon-status" class="status-badge">Unknown</span>
+          </div>
+          <table class="jobs-table" id="jobs-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>State</th>
+                <th>Progress</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobs-tbody">
+            </tbody>
+          </table>
+          <div class="field" style="margin-top:1rem">
+            <h3>Submit New Job</h3>
+            <div class="field-row">
+              <div class="field">
+                <label for="job-type">Type</label>
+                <select id="job-type">
+                  <option value="transcode">Transcode</option>
+                  <option value="encode">Encode</option>
+                  <option value="create">Create</option>
+                  <option value="validate">Validate</option>
+                  <option value="loudness">Loudness</option>
+                  <option value="qc">QC</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="job-desc">Description</label>
+                <input type="text" id="job-desc" placeholder="Job description" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="job-args">Arguments</label>
+              <input type="text" id="job-args" placeholder="e.g. transcode -i input.mp4 -o /tmp/out -f tiff" />
+            </div>
+            <button id="job-submit" class="btn-primary">Submit Job</button>
           </div>
         </section>
       </section>
