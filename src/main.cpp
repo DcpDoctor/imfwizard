@@ -43,6 +43,8 @@ int main(int argc, char* argv[])
 
   std::string title, issuer, content_kind = "feature";
   std::string video_dir, audio_file, output_dir, subtitle_file;
+  std::string color_space = "BT.709";
+  std::string preset;
   uint32_t fps_num = 24, fps_den = 1;
   uint32_t sample_rate = 48000;
   uint16_t bit_depth = 24;
@@ -61,6 +63,8 @@ int main(int argc, char* argv[])
   create_cmd->add_option("--fps-den", fps_den, "Edit rate denominator")->default_val(1);
   create_cmd->add_option("--sample-rate", sample_rate, "Audio sample rate")->default_val(48000);
   create_cmd->add_option("--bit-depth", bit_depth, "Audio bit depth")->default_val(24);
+  create_cmd->add_option("--color-space", color_space, "Color space (BT.709, BT.2020, P3-D65, ACES)")->default_val("BT.709");
+  create_cmd->add_option("--preset", preset, "Delivery preset (netflix, disney, amazon, apple, cinema2k, cinema4k, broadcast, archival)");
   create_cmd->add_option("--cert", cert_file, "X.509 certificate for signing");
   create_cmd->add_option("--key", key_file, "Private key for signing");
   create_cmd->add_option("-s,--subtitle", subtitle_file, "TTML/IMSC subtitle file")
