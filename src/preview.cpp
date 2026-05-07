@@ -1,10 +1,11 @@
-#include "imfwizard/preview.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <regex>
+
+#include "imfwizard/preview.h"
+#include "imfwizard/portable.h"
 
 namespace imfwizard
 {

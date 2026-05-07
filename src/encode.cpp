@@ -1,4 +1,3 @@
-#include "imfwizard/encode.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <array>
@@ -6,6 +5,8 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
+
+#include "imfwizard/encode.h"
 
 namespace fs = std::filesystem;
 

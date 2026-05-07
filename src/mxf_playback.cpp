@@ -1,13 +1,12 @@
-#include "imfwizard/mxf_playback.h"
-#include "imfwizard/portable.h"
-
 #include <algorithm>
 #include <array>
 #include <cstdio>
 #include <fstream>
-#include <iostream>
 #include <regex>
 #include <sstream>
+
+#include "imfwizard/mxf_playback.h"
+#include "imfwizard/portable.h"
 
 namespace imfwizard
 {

@@ -1,3 +1,10 @@
+#include <CLI/CLI.hpp>
+#include <spdlog/spdlog.h>
+
+#include <cinttypes>
+#include <filesystem>
+#include <string>
+
 #include "imfwizard/imfwizard.h"
 #include "imfwizard/info.h"
 #include "imfwizard/supplemental.h"
@@ -56,12 +63,6 @@
 #include "dcpdoctor/checksum_verify.h"
 #include "dcpdoctor/mxf_extract.h"
 #include "dcpdoctor/auto_qc.h"
-#include <CLI/CLI.hpp>
-#include <spdlog/spdlog.h>
-#include <cinttypes>
-#include <filesystem>
-#include <iostream>
-#include <string>
 
 namespace fs = std::filesystem;
 
@@ -801,11 +802,12 @@ int main(int argc, char* argv[])
     {
       const char* sev = note.severity == dcpdoctor::ValidationNote::Severity::error ? "ERROR"
                       : note.severity == dcpdoctor::ValidationNote::Severity::warning ? "WARN" : "INFO";
-      std::cout << "[" << sev << "] " << note.message;
-      if(!note.context.empty()) std::cout << " (" << note.context << ")";
-      std::cout << "\n";
+      if(!note.context.empty())
+        spdlog::info("[{}] {} ({})", sev, note.message, note.context);
+      else
+        spdlog::info("[{}] {}", sev, note.message);
     }
-    std::cout << (result.valid ? "VALID" : "INVALID") << "\n";
+    spdlog::info("{}", result.valid ? "VALID" : "INVALID");
     return result.valid ? 0 : 1;
   }
 
@@ -818,10 +820,10 @@ int main(int argc, char* argv[])
     auto result = dcpdoctor::validate_against_schema(opts);
     for(const auto& e : result.errors)
     {
-      std::cout << (e.is_warning ? "WARN" : "ERROR") << ": " << e.file
-                << ":" << e.line << ":" << e.column << ": " << e.message << "\n";
+      spdlog::info("{}: {}:{}:{}: {}", e.is_warning ? "WARN" : "ERROR", e.file,
+                   e.line, e.column, e.message);
     }
-    std::cout << (result.valid ? "VALID" : "INVALID") << " (" << result.schema_version << ")\n";
+    spdlog::info("{} ({})", result.valid ? "VALID" : "INVALID", result.schema_version);
     return result.valid ? 0 : 1;
   }
 
@@ -839,18 +841,19 @@ int main(int argc, char* argv[])
     else if(comp_target == "Cinema4K") opts.target = dcpdoctor::ImfComplianceTarget::Cinema4K;
     else if(comp_target == "BroadcastHD") opts.target = dcpdoctor::ImfComplianceTarget::BroadcastHD;
     else if(comp_target == "BroadcastUHD") opts.target = dcpdoctor::ImfComplianceTarget::BroadcastUHD;
-    else { std::cerr << "Unknown target: " << comp_target << "\n"; return 1; }
+    else { spdlog::error("Unknown target: {}", comp_target); return 1; }
     auto result = dcpdoctor::check_imf_compliance(opts);
-    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    if(!result.success) { spdlog::error("Error: {}", result.error); return 1; }
     for(const auto& c : result.checks)
     {
-      std::cout << (c.passed ? "PASS" : "FAIL") << ": " << c.rule << " — " << c.description;
-      if(!c.passed) std::cout << " (expected " << c.expected_value << ", got " << c.actual_value << ")";
-      std::cout << "\n";
+      if(c.passed)
+        spdlog::info("PASS: {} — {}", c.rule, c.description);
+      else
+        spdlog::info("FAIL: {} — {} (expected {}, got {})", c.rule, c.description, c.expected_value, c.actual_value);
     }
-    std::cout << dcpdoctor::imf_compliance_target_name(result.target) << ": "
-              << result.passed << "/" << (result.passed + result.failed) << " passed"
-              << (result.compliant ? " — COMPLIANT" : " — NOT COMPLIANT") << "\n";
+    spdlog::info("{}: {}/{} passed{}", dcpdoctor::imf_compliance_target_name(result.target),
+                 result.passed, result.passed + result.failed,
+                 result.compliant ? " — COMPLIANT" : " — NOT COMPLIANT");
     return result.compliant ? 0 : 1;
   }
 
@@ -864,15 +867,14 @@ int main(int argc, char* argv[])
     opts.fps_num = fqc_fps_num;
     opts.fps_den = fqc_fps_den;
     auto result = dcpdoctor::analyze_frame_qc(opts);
-    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
-    std::cout << "Frames: " << result.total_frames
-              << "  Avg: " << result.average_bitrate_mbps << " Mbps"
-              << "  Peak: " << result.peak_bitrate_mbps << " Mbps"
-              << "  Min: " << result.min_bitrate_mbps << " Mbps\n";
+    if(!result.success) { spdlog::error("Error: {}", result.error); return 1; }
+    spdlog::info("Frames: {}  Avg: {} Mbps  Peak: {} Mbps  Min: {} Mbps",
+                 result.total_frames, result.average_bitrate_mbps,
+                 result.peak_bitrate_mbps, result.min_bitrate_mbps);
     if(result.over_budget_count > 0)
-      std::cout << "Over budget: " << result.over_budget_count << " frames\n";
+      spdlog::info("Over budget: {} frames", result.over_budget_count);
     if(result.under_budget_count > 0)
-      std::cout << "Under budget: " << result.under_budget_count << " frames\n";
+      spdlog::info("Under budget: {} frames", result.under_budget_count);
     return 0;
   }
 
@@ -888,20 +890,20 @@ int main(int argc, char* argv[])
     opts.include_waveform = !qcr_no_waveform;
     opts.include_loudness = !qcr_no_loudness;
     auto result = dcpdoctor::generate_detailed_qc(opts);
-    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
-    std::cout << "QC report: " << result.output_file.string() << " (" << result.pages << " pages)\n";
+    if(!result.success) { spdlog::error("Error: {}", result.error); return 1; }
+    spdlog::info("QC report: {} ({} pages)", result.output_file.string(), result.pages);
     return 0;
   }
 
   if(loudness_cmd->parsed())
   {
     auto result = dcpdoctor::measure_imf_loudness(loud_audio);
-    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
-    std::cout << "Integrated: " << result.integrated_lufs << " LUFS\n"
-              << "LRA:        " << result.loudness_range_lu << " LU\n"
-              << "True Peak:  " << result.true_peak_dbtp << " dBTP\n"
-              << "R128:       " << (result.compliant_r128 ? "PASS" : "FAIL") << "\n"
-              << "ATSC:       " << (result.compliant_atsc ? "PASS" : "FAIL") << "\n";
+    if(!result.success) { spdlog::error("Error: {}", result.error); return 1; }
+    spdlog::info("Integrated: {} LUFS", result.integrated_lufs);
+    spdlog::info("LRA:        {} LU", result.loudness_range_lu);
+    spdlog::info("True Peak:  {} dBTP", result.true_peak_dbtp);
+    spdlog::info("R128:       {}", result.compliant_r128 ? "PASS" : "FAIL");
+    spdlog::info("ATSC:       {}", result.compliant_atsc ? "PASS" : "FAIL");
     return 0;
   }
 
@@ -914,10 +916,10 @@ int main(int argc, char* argv[])
     opts.fps_den = avs_fps_den;
     opts.sample_rate = avs_sample_rate;
     auto result = dcpdoctor::detect_av_sync(opts);
-    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
-    std::cout << "Drift: " << result.drift_ms << " ms (" << result.drift_frames << " frames)\n"
-              << "Status: " << (result.in_sync ? "IN SYNC" : "OUT OF SYNC") << "\n";
-    if(!result.recommendation.empty()) std::cout << "Recommendation: " << result.recommendation << "\n";
+    if(!result.success) { spdlog::error("Error: {}", result.error); return 1; }
+    spdlog::info("Drift: {} ms ({} frames)", result.drift_ms, result.drift_frames);
+    spdlog::info("Status: {}", result.in_sync ? "IN SYNC" : "OUT OF SYNC");
+    if(!result.recommendation.empty()) spdlog::info("Recommendation: {}", result.recommendation);
     return 0;
   }
 
@@ -929,14 +931,15 @@ int main(int argc, char* argv[])
     opts.target_spec = hdr_spec;
     opts.expected_bit_depth = hdr_bit_depth;
     auto result = dcpdoctor::validate_hdr_metadata(opts);
-    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
+    if(!result.success) { spdlog::error("Error: {}", result.error); return 1; }
     for(const auto& issue : result.issues)
     {
-      std::cout << "[" << issue.severity << "] " << issue.field << ": " << issue.description;
-      if(!issue.expected.empty()) std::cout << " (expected " << issue.expected << ", got " << issue.actual << ")";
-      std::cout << "\n";
+      if(!issue.expected.empty())
+        spdlog::info("[{}] {}: {} (expected {}, got {})", issue.severity, issue.field, issue.description, issue.expected, issue.actual);
+      else
+        spdlog::info("[{}] {}: {}", issue.severity, issue.field, issue.description);
     }
-    std::cout << (result.valid ? "VALID" : "INVALID") << "\n";
+    spdlog::info("{}", result.valid ? "VALID" : "INVALID");
     return result.valid ? 0 : 1;
   }
 
@@ -954,12 +957,12 @@ int main(int argc, char* argv[])
     opts.generate_html = fc_html;
     opts.extract_diff_frames = fc_extract;
     auto result = dcpdoctor::compare_imps(opts);
-    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
-    std::cout << "Compared: " << result.frames_compared << " frames\n"
-              << "Different: " << result.frames_different << " frames\n"
-              << "Avg PSNR: " << result.avg_psnr << " dB  Min: " << result.min_psnr << " dB\n"
-              << "Avg SSIM: " << result.avg_ssim << "  Min: " << result.min_ssim << "\n"
-              << (result.identical ? "IDENTICAL" : "DIFFERENT") << "\n";
+    if(!result.success) { spdlog::error("Error: {}", result.error); return 1; }
+    spdlog::info("Compared: {} frames", result.frames_compared);
+    spdlog::info("Different: {} frames", result.frames_different);
+    spdlog::info("Avg PSNR: {} dB  Min: {} dB", result.avg_psnr, result.min_psnr);
+    spdlog::info("Avg SSIM: {}  Min: {}", result.avg_ssim, result.min_ssim);
+    spdlog::info("{}", result.identical ? "IDENTICAL" : "DIFFERENT");
     return result.identical ? 0 : 1;
   }
 
@@ -970,12 +973,10 @@ int main(int argc, char* argv[])
     opts.verify_sizes = !cksum_no_sizes;
     opts.stop_on_first_error = cksum_stop_first;
     auto result = dcpdoctor::verify_package_checksums(opts);
-    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
-    std::cout << "Assets: " << result.total_assets
-              << "  OK: " << result.verified_ok
-              << "  Hash mismatches: " << result.hash_mismatches
-              << "  Missing: " << result.missing_files << "\n"
-              << (result.all_valid ? "ALL VALID" : "ERRORS FOUND") << "\n";
+    if(!result.success) { spdlog::error("Error: {}", result.error); return 1; }
+    spdlog::info("Assets: {}  OK: {}  Hash mismatches: {}  Missing: {}",
+                 result.total_assets, result.verified_ok, result.hash_mismatches, result.missing_files);
+    spdlog::info("{}", result.all_valid ? "ALL VALID" : "ERRORS FOUND");
     return result.all_valid ? 0 : 1;
   }
 
@@ -989,9 +990,8 @@ int main(int argc, char* argv[])
     opts.start_frame = mxfe_start;
     opts.end_frame = mxfe_end;
     auto result = dcpdoctor::extract_mxf(opts);
-    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
-    std::cout << "Extracted " << result.frames_extracted << " frames to "
-              << opts.output_dir.string() << "\n";
+    if(!result.success) { spdlog::error("Error: {}", result.error); return 1; }
+    spdlog::info("Extracted {} frames to {}", result.frames_extracted, opts.output_dir.string());
     return 0;
   }
 
@@ -1008,14 +1008,14 @@ int main(int argc, char* argv[])
     opts.silence_duration_min = aqc_silence_dur;
     opts.clipping_threshold = aqc_clip_thresh;
     auto result = dcpdoctor::run_auto_qc(opts);
-    if(!result.success) { std::cerr << "Error: " << result.error << "\n"; return 1; }
-    std::cout << "Duration: " << result.duration_seconds << "s  Frames: " << result.total_frames << "\n";
+    if(!result.success) { spdlog::error("Error: {}", result.error); return 1; }
+    spdlog::info("Duration: {}s  Frames: {}", result.duration_seconds, result.total_frames);
     for(const auto& issue : result.issues)
     {
-      std::cout << "[" << issue.severity << "] " << issue.description
-                << " @ " << issue.start_timecode_sec << "s–" << issue.end_timecode_sec << "s\n";
+      spdlog::info("[{}] {} @ {}s–{}s", issue.severity, issue.description,
+                   issue.start_timecode_sec, issue.end_timecode_sec);
     }
-    if(result.issues.empty()) std::cout << "No issues found.\n";
+    if(result.issues.empty()) spdlog::info("No issues found.");
     return 0;
   }
 
@@ -1049,10 +1049,10 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    std::cout << "IMP created: " << result.output_dir << "\n";
-    std::cout << "  CPL: urn:uuid:" << result.cpl_uuid << "\n";
-    std::cout << "  PKL: urn:uuid:" << result.pkl_uuid << "\n";
-    std::cout << "  Track files: " << result.track_files.size() << "\n";
+    spdlog::info("IMP created: {}", result.output_dir.string());
+    spdlog::info("  CPL: urn:uuid:{}", result.cpl_uuid);
+    spdlog::info("  PKL: urn:uuid:{}", result.pkl_uuid);
+    spdlog::info("  Track files: {}", result.track_files.size());
     return 0;
   }
 
@@ -1065,16 +1065,16 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    std::cout << "IMP: " << imp_info.path << "\n";
-    std::cout << "  Title: " << imp_info.cpl_title << "\n";
-    std::cout << "  CPL: " << imp_info.cpl_uuid << "\n";
-    std::cout << "  PKL: " << imp_info.pkl_uuid << "\n";
-    std::cout << "  Issuer: " << imp_info.issuer << "\n";
-    std::cout << "  Date: " << imp_info.issue_date << "\n";
-    std::cout << "  Assets: " << imp_info.tracks.size() << "\n";
+    spdlog::info("IMP: {}", imp_info.path.string());
+    spdlog::info("  Title: {}", imp_info.cpl_title);
+    spdlog::info("  CPL: {}", imp_info.cpl_uuid);
+    spdlog::info("  PKL: {}", imp_info.pkl_uuid);
+    spdlog::info("  Issuer: {}", imp_info.issuer);
+    spdlog::info("  Date: {}", imp_info.issue_date);
+    spdlog::info("  Assets: {}", imp_info.tracks.size());
     for(const auto& t : imp_info.tracks)
     {
-      std::cout << "    [" << t.type << "] " << t.filename << " (" << t.size << " bytes)\n";
+      spdlog::info("    [{}] {} ({} bytes)", t.type, t.filename, t.size);
     }
     return 0;
   }
@@ -1103,10 +1103,10 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    std::cout << "Supplemental IMP created: " << result.output_dir << "\n";
-    std::cout << "  CPL: urn:uuid:" << result.cpl_uuid << "\n";
-    std::cout << "  PKL: urn:uuid:" << result.pkl_uuid << "\n";
-    std::cout << "  New track files: " << result.new_track_files.size() << "\n";
+    spdlog::info("Supplemental IMP created: {}", result.output_dir.string());
+    spdlog::info("  CPL: urn:uuid:{}", result.cpl_uuid);
+    spdlog::info("  PKL: urn:uuid:{}", result.pkl_uuid);
+    spdlog::info("  New track files: {}", result.new_track_files.size());
     return 0;
   }
 
@@ -1126,7 +1126,7 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    std::cout << "Encoded " << result.frame_count << " frames to " << result.output_dir << "\n";
+    spdlog::info("Encoded {} frames to {}", result.frame_count, result.output_dir.string());
     return 0;
   }
 
@@ -1146,8 +1146,8 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    std::cout << "Transcoded " << result.frame_count << " frames (" << result.width << "x"
-              << result.height << " @ " << result.fps << " fps) to " << result.output_dir << "\n";
+    spdlog::info("Transcoded {} frames ({}x{} @ {} fps) to {}", result.frame_count,
+                 result.width, result.height, result.fps, result.output_dir.string());
     return 0;
   }
 
@@ -1166,8 +1166,8 @@ int main(int argc, char* argv[])
       spdlog::error("Extract failed: {}", result.error);
       return 1;
     }
-    std::cout << "Extracted " << result.video_frames << " video frames, "
-              << result.extracted_files.size() << " files to " << result.output_dir << "\n";
+    spdlog::info("Extracted {} video frames, {} files to {}", result.video_frames,
+                 result.extracted_files.size(), result.output_dir.string());
     return 0;
   }
 
@@ -1187,8 +1187,7 @@ int main(int argc, char* argv[])
       spdlog::error("Conform failed: {}", result.error);
       return 1;
     }
-    std::cout << "Conformed " << result.entries.size() << " events, " << result.total_duration
-              << " total frames\n";
+    spdlog::info("Conformed {} events, {} total frames", result.entries.size(), result.total_duration);
     return 0;
   }
 
@@ -1203,7 +1202,7 @@ int main(int argc, char* argv[])
     config.stability_delay_ms = watch_stability_ms;
     config.include_extensions = watch_extensions;
     config.custom_command = watch_custom_cmd;
-    config.on_status = [](const std::string& msg) { std::cout << "[watch] " << msg << "\n"; };
+    config.on_status = [](const std::string& msg) { spdlog::info("[watch] {}", msg); };
 
     // Parse action strings
     if(!watch_actions_str.empty())
@@ -1227,7 +1226,7 @@ int main(int argc, char* argv[])
     }
 
     std::atomic<bool> stop{false};
-    std::cout << "Watching " << watch_dir << " (Ctrl+C to stop)...\n";
+    spdlog::info("Watching {} (Ctrl+C to stop)...", watch_dir);
     imfwizard::watch_folder(config, stop);
     return 0;
   }
@@ -1254,7 +1253,7 @@ int main(int argc, char* argv[])
     opts.validation = validation;
     opts.title = std::filesystem::path(rpt_imp_dir).filename().string();
     imfwizard::write_qc_report(opts, rpt_output);
-    std::cout << "QC report written to " << rpt_output << "\n";
+    spdlog::info("QC report written to {}", rpt_output);
     return 0;
   }
 
@@ -1277,8 +1276,8 @@ int main(int argc, char* argv[])
       spdlog::error("{}", r.error);
       return 1;
     }
-    std::cout << "Remapped " << r.input_channels << "ch -> " << r.output_channels
-              << "ch: " << r.output_file.string() << "\n";
+    spdlog::info("Remapped {}ch -> {}ch: {}", r.input_channels, r.output_channels,
+                 r.output_file.string());
     return 0;
   }
 
@@ -1298,8 +1297,7 @@ int main(int argc, char* argv[])
         spdlog::error("{}", r.error);
         return 1;
       }
-      std::cout << "Transferred " << r.files_transferred << " files at " << r.effective_rate_mbps
-                << " Mbps\n";
+      spdlog::info("Transferred {} files at {} Mbps", r.files_transferred, r.effective_rate_mbps);
     }
     else
     {
@@ -1315,8 +1313,7 @@ int main(int argc, char* argv[])
         spdlog::error("{}", r.error);
         return 1;
       }
-      std::cout << "Uploaded " << r.files_uploaded << " files to s3://" << up_bucket << "/"
-                << up_prefix << "\n";
+      spdlog::info("Uploaded {} files to s3://{}/{}", r.files_uploaded, up_bucket, up_prefix);
     }
     return 0;
   }
@@ -1330,7 +1327,7 @@ int main(int argc, char* argv[])
       return 1;
     }
     imfwizard::write_ttml_captions(parsed.entries, cap_output, cap_fps, 1);
-    std::cout << "Converted " << parsed.entries.size() << " captions to " << cap_output << "\n";
+    spdlog::info("Converted {} captions to {}", parsed.entries.size(), cap_output);
     return 0;
   }
 
@@ -1347,7 +1344,7 @@ int main(int argc, char* argv[])
       spdlog::error("{}", r.error);
       return 1;
     }
-    std::cout << "Watermarked " << r.frames_watermarked << " frames\n";
+    spdlog::info("Watermarked {} frames", r.frames_watermarked);
     return 0;
   }
 
@@ -1355,20 +1352,20 @@ int main(int argc, char* argv[])
   {
     if(prof_name.empty())
     {
-      std::cout << "Available delivery profiles:\n";
+      spdlog::info("Available delivery profiles:");
       for(const auto& name : imfwizard::available_profiles)
-        std::cout << "  " << name << "\n";
+        spdlog::info("  {}", name);
     }
     else
     {
       auto p = imfwizard::get_profile(prof_name);
-      std::cout << p.name << " — " << p.description << "\n"
-                << "  Resolution: " << p.max_width << "x" << p.max_height << "\n"
-                << "  Bit depth: " << p.bit_depth << "\n"
-                << "  Max bitrate: " << p.max_bitrate_mbps << " Mbps\n"
-                << "  HDR required: " << (p.requires_hdr ? "yes" : "no") << "\n"
-                << "  App constraint: " << p.app_constraint << "\n"
-                << "  Signing required: " << (p.require_signing ? "yes" : "no") << "\n";
+      spdlog::info("{} — {}", p.name, p.description);
+      spdlog::info("  Resolution: {}x{}", p.max_width, p.max_height);
+      spdlog::info("  Bit depth: {}", p.bit_depth);
+      spdlog::info("  Max bitrate: {} Mbps", p.max_bitrate_mbps);
+      spdlog::info("  HDR required: {}", p.requires_hdr ? "yes" : "no");
+      spdlog::info("  App constraint: {}", p.app_constraint);
+      spdlog::info("  Signing required: {}", p.require_signing ? "yes" : "no");
     }
     return 0;
   }
@@ -1387,24 +1384,24 @@ int main(int argc, char* argv[])
     {
       if(!client.is_daemon_running())
       {
-        std::cerr << "Daemon not running. Start with: imfwizard daemon\n";
+        spdlog::error("Daemon not running. Start with: imfwizard daemon");
         return 1;
       }
       auto jobs = client.list();
       if(jobs.empty())
       {
-        std::cout << "No jobs in queue.\n";
+        spdlog::info("No jobs in queue.");
         return 0;
       }
-      std::cout << "ID  State      Progress  Type       Description\n";
-      std::cout << "--- ---------- --------- ---------- -----------\n";
+      spdlog::info("ID  State      Progress  Type       Description");
+      spdlog::info("--- ---------- --------- ---------- -----------");
       for(auto& j : jobs)
       {
         char line[256];
-        snprintf(line, sizeof(line), "%-3" PRIu64 " %-10s %5.0f%%    %-10s %s\n", j.id,
+        snprintf(line, sizeof(line), "%-3" PRIu64 " %-10s %5.0f%%    %-10s %s", j.id,
                  imfwizard::job_state_to_string(j.state).c_str(), j.progress,
                  imfwizard::job_type_to_string(j.type).c_str(), j.description.c_str());
-        std::cout << line;
+        spdlog::info("{}", line);
       }
       return 0;
     }
@@ -1413,7 +1410,7 @@ int main(int argc, char* argv[])
     {
       if(!client.is_daemon_running())
       {
-        std::cerr << "Daemon not running. Start with: imfwizard daemon\n";
+        spdlog::error("Daemon not running. Start with: imfwizard daemon");
         return 1;
       }
       std::optional<uint64_t> dep;
@@ -1422,10 +1419,10 @@ int main(int argc, char* argv[])
       auto id =
           client.submit(imfwizard::job_type_from_string(batch_type), batch_desc, batch_args, dep);
       if(id)
-        std::cout << "Job " << *id << " submitted\n";
+        spdlog::info("Job {} submitted", *id);
       else
       {
-        std::cerr << "Failed to submit job\n";
+        spdlog::error("Failed to submit job");
         return 1;
       }
       return 0;
@@ -1434,10 +1431,10 @@ int main(int argc, char* argv[])
     if(batch_cancel_cmd->parsed())
     {
       if(client.cancel(batch_cancel_id))
-        std::cout << "Job " << batch_cancel_id << " cancelled\n";
+        spdlog::info("Job {} cancelled", batch_cancel_id);
       else
       {
-        std::cerr << "Failed to cancel job " << batch_cancel_id << "\n";
+        spdlog::error("Failed to cancel job {}", batch_cancel_id);
         return 1;
       }
       return 0;
@@ -1448,14 +1445,14 @@ int main(int argc, char* argv[])
       auto job = client.status(batch_status_id);
       if(job)
       {
-        std::cout << "Job " << job->id << ": " << imfwizard::job_state_to_string(job->state) << " ("
-                  << job->progress << "%) — " << job->description << "\n";
+        spdlog::info("Job {}: {} ({}%) — {}", job->id, imfwizard::job_state_to_string(job->state),
+                     job->progress, job->description);
         if(!job->error.empty())
-          std::cout << "  Error: " << job->error << "\n";
+          spdlog::info("  Error: {}", job->error);
       }
       else
       {
-        std::cerr << "Job " << batch_status_id << " not found\n";
+        spdlog::error("Job {} not found", batch_status_id);
         return 1;
       }
       return 0;
@@ -1464,10 +1461,10 @@ int main(int argc, char* argv[])
     if(batch_pause_cmd->parsed())
     {
       if(client.pause())
-        std::cout << "Queue paused\n";
+        spdlog::info("Queue paused");
       else
       {
-        std::cerr << "Failed to pause (daemon not running?)\n";
+        spdlog::error("Failed to pause (daemon not running?)");
         return 1;
       }
       return 0;
@@ -1476,10 +1473,10 @@ int main(int argc, char* argv[])
     if(batch_resume_cmd->parsed())
     {
       if(client.resume())
-        std::cout << "Queue resumed\n";
+        spdlog::info("Queue resumed");
       else
       {
-        std::cerr << "Failed to resume (daemon not running?)\n";
+        spdlog::error("Failed to resume (daemon not running?)");
         return 1;
       }
       return 0;
@@ -1488,10 +1485,10 @@ int main(int argc, char* argv[])
     if(batch_priority_cmd->parsed())
     {
       if(client.set_priority(batch_pri_id, batch_pri_val))
-        std::cout << "Job " << batch_pri_id << " priority set to " << batch_pri_val << "\n";
+        spdlog::info("Job {} priority set to {}", batch_pri_id, batch_pri_val);
       else
       {
-        std::cerr << "Failed to set priority\n";
+        spdlog::error("Failed to set priority");
         return 1;
       }
       return 0;
@@ -1513,8 +1510,7 @@ int main(int argc, char* argv[])
         spdlog::error("{}", r.error);
         return 1;
       }
-      std::cout << "Generated " << r.thumbnails.size() << " thumbnails from " << r.total_frames
-                << " frames\n";
+      spdlog::info("Generated {} thumbnails from {} frames", r.thumbnails.size(), r.total_frames);
     }
     else
     {
@@ -1529,7 +1525,7 @@ int main(int argc, char* argv[])
         spdlog::error("{}", r.error);
         return 1;
       }
-      std::cout << "Preview: " << r.frame.thumbnail_path << "\n";
+      spdlog::info("Preview: {}", r.frame.thumbnail_path);
     }
     return 0;
   }
@@ -1550,9 +1546,9 @@ int main(int argc, char* argv[])
       spdlog::error("{}", r.error);
       return 1;
     }
-    std::cout << "ProRes IMP created: " << r.output_dir << "\n"
-              << "  CPL: urn:uuid:" << r.cpl_uuid << "\n"
-              << "  Frames: " << r.frame_count << "\n";
+    spdlog::info("ProRes IMP created: {}", r.output_dir.string());
+    spdlog::info("  CPL: urn:uuid:{}", r.cpl_uuid);
+    spdlog::info("  Frames: {}", r.frame_count);
     return 0;
   }
 
@@ -1572,7 +1568,7 @@ int main(int argc, char* argv[])
       spdlog::error("{}", r.error);
       return 1;
     }
-    std::cout << "Burned " << r.frame_count << " frames -> " << r.output_file << "\n";
+    spdlog::info("Burned {} frames -> {}", r.frame_count, r.output_file.string());
     return 0;
   }
 
@@ -1590,10 +1586,10 @@ int main(int argc, char* argv[])
       spdlog::error("{}", r.error);
       return 1;
     }
-    std::cout << "DCP created: " << r.output_dir << "\n"
-              << "  CPL: urn:uuid:" << r.cpl_uuid << "\n"
-              << "  Reels: " << r.reel_count << "\n"
-              << "  Size: " << (r.total_size / (1024 * 1024)) << " MB\n";
+    spdlog::info("DCP created: {}", r.output_dir.string());
+    spdlog::info("  CPL: urn:uuid:{}", r.cpl_uuid);
+    spdlog::info("  Reels: {}", r.reel_count);
+    spdlog::info("  Size: {} MB", r.total_size / (1024 * 1024));
     return 0;
   }
 
@@ -1617,13 +1613,13 @@ int main(int argc, char* argv[])
     }
 
     auto r = imfwizard::batch_deliver(opts);
-    std::cout << "Batch delivery: " << r.succeeded << " succeeded, " << r.failed << " failed\n";
+    spdlog::info("Batch delivery: {} succeeded, {} failed", r.succeeded, r.failed);
     for(const auto& tr : r.results)
     {
-      std::cout << "  [" << (tr.success ? "OK" : "FAIL") << "] " << tr.profile;
       if(!tr.error.empty())
-        std::cout << " -- " << tr.error;
-      std::cout << "\n";
+        spdlog::info("  [{}] {} -- {}", tr.success ? "OK" : "FAIL", tr.profile, tr.error);
+      else
+        spdlog::info("  [{}] {}", tr.success ? "OK" : "FAIL", tr.profile);
     }
     return r.all_success ? 0 : 1;
   }
@@ -1649,22 +1645,22 @@ int main(int argc, char* argv[])
       {
         std::ofstream f(an_output);
         f << json;
-        std::cout << "Analytics written to " << an_output << "\n";
+        spdlog::info("Analytics written to {}", an_output);
       }
       else
       {
-        std::cout << json;
+        spdlog::info("{}", json);
       }
     }
     else
     {
-      std::cout << "Frames: " << r.total_frames << "\n"
-                << "Duration: " << r.duration_seconds << "s\n"
-                << "Total size: " << (r.total_bytes / (1024 * 1024)) << " MB\n"
-                << "Avg bitrate: " << r.avg_bitrate_mbps << " Mbps\n"
-                << "Peak bitrate: " << r.peak_bitrate_mbps << " Mbps\n"
-                << "Min bitrate: " << r.min_bitrate_mbps << " Mbps\n"
-                << "Std dev: " << r.stddev_bitrate_mbps << " Mbps\n";
+      spdlog::info("Frames: {}", r.total_frames);
+      spdlog::info("Duration: {}s", r.duration_seconds);
+      spdlog::info("Total size: {} MB", r.total_bytes / (1024 * 1024));
+      spdlog::info("Avg bitrate: {} Mbps", r.avg_bitrate_mbps);
+      spdlog::info("Peak bitrate: {} Mbps", r.peak_bitrate_mbps);
+      spdlog::info("Min bitrate: {} Mbps", r.min_bitrate_mbps);
+      spdlog::info("Std dev: {} Mbps", r.stddev_bitrate_mbps);
     }
     return 0;
   }
@@ -1681,7 +1677,7 @@ int main(int argc, char* argv[])
     auto result = imfwizard::start_rest_api(opts);
     if(!result.success)
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
     return 0; // server exited normally
@@ -1695,14 +1691,13 @@ int main(int argc, char* argv[])
     auto result = imfwizard::parse_edl(opts);
     if(!result.error.empty())
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "Format: " << result.title << "\n";
-    std::cout << "Events: " << result.events.size() << "\n";
+    spdlog::info("Format: {}", result.title);
+    spdlog::info("Events: {}", result.events.size());
     for(auto& e : result.events)
-      std::cout << "  " << e.index << ": " << e.reel_name << " " << e.src_in << "-"
-                << e.src_out << "\n";
+      spdlog::info("  {}: {} {}-{}", e.index, e.reel_name, e.src_in, e.src_out);
     return 0;
   }
   if(plug_cmd->parsed())
@@ -1711,7 +1706,7 @@ int main(int argc, char* argv[])
     {
       auto plugins = imfwizard::discover_plugins(plug_dir);
       for(auto& p : plugins)
-        std::cout << p.name << " v" << p.version << " — " << p.description << "\n";
+        spdlog::info("{} v{} — {}", p.name, p.version, p.description);
     }
     return 0;
   }
@@ -1723,11 +1718,11 @@ int main(int argc, char* argv[])
     auto result = imfwizard::import_atmos(opts);
     if(!result.error.empty())
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "Atmos import complete: " << result.iab_mxf.string() << "\n";
-    std::cout << "Beds: " << result.bed_channel_count << ", Objects: " << result.object_count << "\n";
+    spdlog::info("Atmos import complete: {}", result.iab_mxf.string());
+    spdlog::info("Beds: {}, Objects: {}", result.bed_channel_count, result.object_count);
     return 0;
   }
   if(mca_cmd->parsed())
@@ -1744,7 +1739,7 @@ int main(int argc, char* argv[])
     auto xml = imfwizard::generate_mca_xml(sf);
     std::ofstream out(mca_output);
     out << xml;
-    std::cout << "MCA labels written to " << mca_output << "\n";
+    spdlog::info("MCA labels written to {}", mca_output);
     return 0;
   }
   if(ad_cmd->parsed())
@@ -1757,10 +1752,10 @@ int main(int argc, char* argv[])
     auto result = imfwizard::create_audio_description(opts);
     if(!result.error.empty())
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "Audio description created: " << result.output_file.string() << "\n";
+    spdlog::info("Audio description created: {}", result.output_file.string());
     return 0;
   }
   if(lut_cmd->parsed())
@@ -1772,10 +1767,10 @@ int main(int argc, char* argv[])
     auto result = imfwizard::apply_lut(opts);
     if(!result.error.empty())
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "LUT applied: " << result.output_dir.string() << "\n";
+    spdlog::info("LUT applied: {}", result.output_dir.string());
     return 0;
   }
   if(aces_cmd->parsed())
@@ -1790,10 +1785,10 @@ int main(int argc, char* argv[])
     auto result = imfwizard::apply_aces_pipeline(opts);
     if(!result.error.empty())
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "ACES pipeline applied: " << result.output_dir.string() << "\n";
+    spdlog::info("ACES pipeline applied: {}", result.output_dir.string());
     return 0;
   }
   if(ann_cmd->parsed())
@@ -1805,10 +1800,10 @@ int main(int argc, char* argv[])
     bool ok = imfwizard::annotate_cpl(ann_cpl, ann);
     if(!ok)
     {
-      std::cerr << "Error: Failed to annotate CPL\n";
+      spdlog::error("Error: Failed to annotate CPL");
       return 1;
     }
-    std::cout << "Annotation added to " << ann_cpl << "\n";
+    spdlog::info("Annotation added to {}", ann_cpl);
     return 0;
   }
   if(pv_cmd->parsed())
@@ -1832,11 +1827,11 @@ int main(int argc, char* argv[])
     auto result = imfwizard::create_partial_version(opts);
     if(!result.error.empty())
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "Partial version created: " << result.output_dir.string() << "\n";
-    std::cout << "CPL: " << result.cpl_uuid << "\n";
+    spdlog::info("Partial version created: {}", result.output_dir.string());
+    spdlog::info("CPL: {}", result.cpl_uuid);
     return 0;
   }
   if(slate_cmd->parsed())
@@ -1865,11 +1860,11 @@ int main(int argc, char* argv[])
     auto result = imfwizard::generate_slate(opts);
     if(!result.error.empty())
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "Slate generated: " << result.output_dir.string() << "\n";
-    std::cout << "Frames: " << result.frames_generated << "\n";
+    spdlog::info("Slate generated: {}", result.output_dir.string());
+    spdlog::info("Frames: {}", result.frames_generated);
     return 0;
   }
   if(retime_cmd->parsed())
@@ -1885,11 +1880,11 @@ int main(int argc, char* argv[])
     auto result = imfwizard::retime_subtitles(opts);
     if(!result.error.empty())
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "Retimed: " << result.output_file.string() << "\n";
-    std::cout << "Entries: " << result.entries_processed << "\n";
+    spdlog::info("Retimed: {}", result.output_file.string());
+    spdlog::info("Entries: {}", result.entries_processed);
     return 0;
   }
   if(sdi_cmd->parsed())
@@ -1899,20 +1894,20 @@ int main(int argc, char* argv[])
       auto devices = imfwizard::list_sdi_devices();
       if(devices.empty())
       {
-        std::cout << "No DeckLink SDI devices found.\n";
+        spdlog::info("No DeckLink SDI devices found.");
         if(!imfwizard::decklink_available())
-          std::cout << "Note: GStreamer decklink plugin not installed.\n";
+          spdlog::info("Note: GStreamer decklink plugin not installed.");
       }
       else
       {
         for(auto& d : devices)
-          std::cout << "  [" << d.index << "] " << d.name << " (" << d.driver << ")\n";
+          spdlog::info("  [{}] {} ({})", d.index, d.name, d.driver);
       }
       return 0;
     }
     if(sdi_input.empty())
     {
-      std::cerr << "Error: --input is required (use --list-devices to enumerate)\n";
+      spdlog::error("Error: --input is required (use --list-devices to enumerate)");
       return 1;
     }
     imfwizard::SdiOutputOptions opts;
@@ -1931,10 +1926,10 @@ int main(int argc, char* argv[])
     auto result = imfwizard::sdi_preview(opts);
     if(!result.error.empty())
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "SDI playback complete.\n";
+    spdlog::info("SDI playback complete.");
     return 0;
   }
   if(diff_cmd->parsed())
@@ -1948,29 +1943,27 @@ int main(int argc, char* argv[])
     auto result = imfwizard::diff_packages(opts);
     if(!result.success)
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
     if(diff_json)
     {
-      std::cout << "{\"tracks_added\":" << result.tracks_added
-                << ",\"tracks_removed\":" << result.tracks_removed
-                << ",\"tracks_modified\":" << result.tracks_modified
-                << ",\"segments_changed\":" << result.segments_changed << "}\n";
+      spdlog::info("{{\"tracks_added\":{},\"tracks_removed\":{},\"tracks_modified\":{},\"segments_changed\":{}}}",
+                   result.tracks_added, result.tracks_removed, result.tracks_modified, result.segments_changed);
     }
     else
     {
-      std::cout << "=== IMF Package Diff ===\n";
-      std::cout << "Tracks added: " << result.tracks_added << "\n";
-      std::cout << "Tracks removed: " << result.tracks_removed << "\n";
-      std::cout << "Tracks modified: " << result.tracks_modified << "\n";
-      std::cout << "Segments changed: " << result.segments_changed << "\n";
+      spdlog::info("=== IMF Package Diff ===");
+      spdlog::info("Tracks added: {}", result.tracks_added);
+      spdlog::info("Tracks removed: {}", result.tracks_removed);
+      spdlog::info("Tracks modified: {}", result.tracks_modified);
+      spdlog::info("Segments changed: {}", result.segments_changed);
       if(result.cpl_title_changed)
-        std::cout << "CPL title: CHANGED\n";
+        spdlog::info("CPL title: CHANGED");
       if(result.edit_rate_changed)
-        std::cout << "Edit rate: CHANGED\n";
+        spdlog::info("Edit rate: CHANGED");
       for(auto& d : result.track_diffs)
-        std::cout << "  [" << d.status << "] " << d.track_id << " " << d.detail << "\n";
+        spdlog::info("  [{}] {} {}", d.status, d.track_id, d.detail);
     }
     return 0;
   }
@@ -1986,16 +1979,16 @@ int main(int argc, char* argv[])
     auto result = imfwizard::import_otioz(opts);
     if(!result.success)
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "OTIOZ imported: " << result.clips.size() << " clips\n";
-    std::cout << "  Video tracks: " << result.video_tracks << "\n";
-    std::cout << "  Audio tracks: " << result.audio_tracks << "\n";
+    spdlog::info("OTIOZ imported: {} clips", result.clips.size());
+    spdlog::info("  Video tracks: {}", result.video_tracks);
+    spdlog::info("  Audio tracks: {}", result.audio_tracks);
     if(!result.extracted_dir.empty())
-      std::cout << "  Media extracted to: " << result.extracted_dir.string() << "\n";
+      spdlog::info("  Media extracted to: {}", result.extracted_dir.string());
     if(!result.generated_cpl.empty())
-      std::cout << "  CPL generated: " << result.generated_cpl.string() << "\n";
+      spdlog::info("  CPL generated: {}", result.generated_cpl.string());
     return 0;
   }
   if(mnode_cmd->parsed())
@@ -2006,7 +1999,7 @@ int main(int argc, char* argv[])
     }
     if(mnode_input.empty() || mnode_output.empty() || mnode_nodes.empty())
     {
-      std::cerr << "Error: --input, --output, and --nodes required\n";
+      spdlog::error("Error: --input, --output, and --nodes required");
       return 1;
     }
     imfwizard::MultiNodeOptions opts;
@@ -2021,14 +2014,14 @@ int main(int argc, char* argv[])
     auto result = imfwizard::distribute_encode(opts);
     if(!result.success)
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "Distributed encode complete\n";
-    std::cout << "  Frames: " << result.frames_encoded << "/" << result.total_frames << "\n";
-    std::cout << "  Nodes used: " << result.nodes_used << "\n";
-    std::cout << "  Elapsed: " << result.elapsed_seconds << "s\n";
-    std::cout << "  Speedup: " << result.speedup_factor << "x\n";
+    spdlog::info("Distributed encode complete");
+    spdlog::info("  Frames: {}/{}", result.frames_encoded, result.total_frames);
+    spdlog::info("  Nodes used: {}", result.nodes_used);
+    spdlog::info("  Elapsed: {}s", result.elapsed_seconds);
+    spdlog::info("  Speedup: {}x", result.speedup_factor);
     return 0;
   }
   if(kdm_cmd->parsed())
@@ -2055,12 +2048,12 @@ int main(int argc, char* argv[])
     auto result = imfwizard::generate_kdm(opts);
     if(!result.success)
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "Generated " << result.kdms_generated << " KDM(s):\n";
+    spdlog::info("Generated {} KDM(s):", result.kdms_generated);
     for(auto& f : result.output_files)
-      std::cout << "  " << f.string() << "\n";
+      spdlog::info("  {}", f.string());
     return 0;
   }
   if(dv81_cmd->parsed())
@@ -2080,12 +2073,12 @@ int main(int argc, char* argv[])
       result = imfwizard::inject_dv81_metadata(cfg);
     if(!result.success)
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "Dolby Vision Profile 8.1 applied\n";
-    std::cout << "  Output: " << result.output_mxf.string() << "\n";
-    std::cout << "  HDR10 compatible: " << (result.hdr10_compatible ? "yes" : "no") << "\n";
+    spdlog::info("Dolby Vision Profile 8.1 applied");
+    spdlog::info("  Output: {}", result.output_mxf.string());
+    spdlog::info("  HDR10 compatible: {}", result.hdr10_compatible ? "yes" : "no");
     return 0;
   }
   if(mxfplay_cmd->parsed())
@@ -2095,15 +2088,15 @@ int main(int argc, char* argv[])
       auto info = imfwizard::probe_mxf(mxfplay_input);
       if(!info.success)
       {
-        std::cerr << "Error: " << info.error << "\n";
+        spdlog::error("Error: {}", info.error);
         return 1;
       }
-      std::cout << "MXF Info:\n";
-      std::cout << "  Resolution: " << info.width << "x" << info.height << "\n";
-      std::cout << "  FPS: " << info.fps << "\n";
-      std::cout << "  Codec: " << info.codec << "\n";
-      std::cout << "  Frames: " << info.total_frames << "\n";
-      std::cout << "  Duration: " << info.duration_seconds << "s\n";
+      spdlog::info("MXF Info:");
+      spdlog::info("  Resolution: {}x{}", info.width, info.height);
+      spdlog::info("  FPS: {}", info.fps);
+      spdlog::info("  Codec: {}", info.codec);
+      spdlog::info("  Frames: {}", info.total_frames);
+      spdlog::info("  Duration: {}s", info.duration_seconds);
       return 0;
     }
     if(mxfplay_thumbs)
@@ -2117,10 +2110,10 @@ int main(int argc, char* argv[])
       auto result = imfwizard::generate_thumbnails(opts);
       if(!result.success)
       {
-        std::cerr << "Error: " << result.error << "\n";
+        spdlog::error("Error: {}", result.error);
         return 1;
       }
-      std::cout << "Generated " << result.thumbnails.size() << " thumbnails\n";
+      spdlog::info("Generated {} thumbnails", result.thumbnails.size());
       return 0;
     }
     // Launch playback
@@ -2147,10 +2140,10 @@ int main(int argc, char* argv[])
       auto result = imfwizard::test_webhook(config);
       if(result.success)
       {
-        std::cout << "Webhook test successful (HTTP " << result.http_status << ")\n";
+        spdlog::info("Webhook test successful (HTTP {})", result.http_status);
         return 0;
       }
-      std::cerr << "Webhook test failed: " << result.error << "\n";
+      spdlog::error("Webhook test failed: {}", result.error);
       return 1;
     }
 
@@ -2160,11 +2153,10 @@ int main(int argc, char* argv[])
     auto result = imfwizard::send_webhook(config, event);
     if(result.success)
     {
-      std::cout << "Webhook sent (HTTP " << result.http_status << ", "
-                << result.attempts << " attempt(s))\n";
+      spdlog::info("Webhook sent (HTTP {}, {} attempt(s))", result.http_status, result.attempts);
       return 0;
     }
-    std::cerr << "Webhook failed: " << result.error << "\n";
+    spdlog::error("Webhook failed: {}", result.error);
     return 1;
   }
 
@@ -2183,11 +2175,11 @@ int main(int argc, char* argv[])
 
     if(comp_install)
     {
-      std::cout << imfwizard::completion_install_instructions(shell);
+      spdlog::info("{}", imfwizard::completion_install_instructions(shell));
       return 0;
     }
 
-    std::cout << imfwizard::generate_completion_script(shell);
+    spdlog::info("{}", imfwizard::generate_completion_script(shell));
     return 0;
   }
 
@@ -2196,11 +2188,11 @@ int main(int argc, char* argv[])
   {
     if(!imfwizard::pdf_renderer_available())
     {
-      std::cerr << "Error: No PDF renderer found.\n"
-                << "Install wkhtmltopdf or weasyprint:\n"
-                << "  apt install wkhtmltopdf   # Debian/Ubuntu\n"
-                << "  brew install wkhtmltopdf   # macOS\n"
-                << "  pip install weasyprint     # Python\n";
+      spdlog::error("Error: No PDF renderer found.");
+      spdlog::error("Install wkhtmltopdf or weasyprint:");
+      spdlog::error("  apt install wkhtmltopdf   # Debian/Ubuntu");
+      spdlog::error("  brew install wkhtmltopdf   # macOS");
+      spdlog::error("  pip install weasyprint     # Python");
       return 1;
     }
 
@@ -2230,10 +2222,10 @@ int main(int argc, char* argv[])
     auto result = imfwizard::generate_pdf_report(opts);
     if(result.success)
     {
-      std::cout << "PDF report: " << result.output_path.string() << "\n";
+      spdlog::info("PDF report: {}", result.output_path.string());
       return 0;
     }
-    std::cerr << "Error: " << result.error << "\n";
+    spdlog::error("Error: {}", result.error);
     return 1;
   }
 
@@ -2254,18 +2246,18 @@ int main(int argc, char* argv[])
 
     if(opts.target_format == imfwizard::SubtitleFormat::Unknown)
     {
-      std::cerr << "Error: unknown target format '" << subconv_format << "'\n";
-      std::cerr << "Valid formats: srt, ttml, webvtt, imsc\n";
+      spdlog::error("Error: unknown target format '{}'", subconv_format);
+      spdlog::error("Valid formats: srt, ttml, webvtt, imsc");
       return 1;
     }
 
     auto result = imfwizard::convert_subtitles(opts);
     if(!result.success)
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
-    std::cout << "Converted " << result.cue_count << " cues -> " << result.output_path.string() << "\n";
+    spdlog::info("Converted {} cues -> {}", result.cue_count, result.output_path.string());
     return 0;
   }
 
@@ -2280,8 +2272,8 @@ int main(int argc, char* argv[])
     opts.target_drop = tcconv_dst_drop;
 
     auto result = imfwizard::convert_timecode(opts);
-    std::cout << tcconv_input << " @ " << tcconv_src_fps << "fps -> "
-              << result.to_string() << " @ " << tcconv_dst_fps << "fps\n";
+    spdlog::info("{} @ {}fps -> {} @ {}fps", tcconv_input, tcconv_src_fps,
+                 result.to_string(), tcconv_dst_fps);
     return 0;
   }
 
@@ -2296,23 +2288,22 @@ int main(int argc, char* argv[])
     auto result = imfwizard::check_timecode_drift(opts);
     if(!result.success)
     {
-      std::cerr << "Error: " << result.error << "\n";
+      spdlog::error("Error: {}", result.error);
       return 1;
     }
 
     if(!result.has_timecode)
     {
-      std::cout << "No timecode track found in video\n";
+      spdlog::info("No timecode track found in video");
       return 0;
     }
 
-    std::cout << "Detected TC: " << result.detected_start_tc << "\n";
-    std::cout << "Detected FPS: " << result.detected_fps << "\n";
+    spdlog::info("Detected TC: {}", result.detected_start_tc);
+    spdlog::info("Detected FPS: {}", result.detected_fps);
     if(!tcdrift_expected.empty())
     {
-      std::cout << "Drift: " << result.max_drift_frames << " frames ("
-                << result.max_drift_seconds << "s)\n";
-      std::cout << "Within tolerance: " << (result.within_tolerance ? "YES" : "NO") << "\n";
+      spdlog::info("Drift: {} frames ({}s)", result.max_drift_frames, result.max_drift_seconds);
+      spdlog::info("Within tolerance: {}", result.within_tolerance ? "YES" : "NO");
     }
     return result.within_tolerance ? 0 : 1;
   }

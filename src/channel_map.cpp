@@ -1,7 +1,8 @@
-#include "imfwizard/channel_map.h"
 #include <spdlog/spdlog.h>
 #include <cmath>
 #include <sstream>
+
+#include "imfwizard/channel_map.h"
 
 namespace imfwizard
 {

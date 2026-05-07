@@ -1,8 +1,9 @@
-#include "imfwizard/captions.h"
 #include <spdlog/spdlog.h>
 #include <fstream>
 #include <sstream>
 #include <regex>
+
+#include "imfwizard/captions.h"
 
 namespace imfwizard
 {

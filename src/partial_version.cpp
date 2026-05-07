@@ -1,10 +1,10 @@
+#include <spdlog/spdlog.h>
+#include <filesystem>
+#include <fstream>
+
 #include "imfwizard/partial_version.h"
 #include "imfwizard/info.h"
 #include "imfwizard/uuid.h"
-#include <spdlog/spdlog.h>
-
-#include <filesystem>
-#include <fstream>
 
 namespace fs = std::filesystem;
 

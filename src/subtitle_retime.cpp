@@ -1,10 +1,11 @@
-#include "imfwizard/subtitle_retime.h"
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <regex>
 #include <sstream>
+
+#include "imfwizard/subtitle_retime.h"
 
 namespace fs = std::filesystem;
 

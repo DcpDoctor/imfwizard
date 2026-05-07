@@ -1,6 +1,3 @@
-#include "imfwizard/mxf_wrap.h"
-#include "imfwizard/uuid.h"
-#include "imfwizard/hash.h"
 #include <KM_fileio.h>
 #include <KM_prng.h>
 #include <AS_02.h>
@@ -9,6 +6,10 @@
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <stdexcept>
+
+#include "imfwizard/mxf_wrap.h"
+#include "imfwizard/uuid.h"
+#include "imfwizard/hash.h"
 
 namespace imfwizard
 {

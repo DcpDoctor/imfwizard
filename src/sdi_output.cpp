@@ -1,12 +1,12 @@
-#include "imfwizard/sdi_output.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
-
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <regex>
 #include <sstream>
+
+#include "imfwizard/sdi_output.h"
+#include "imfwizard/portable.h"
 
 namespace fs = std::filesystem;
 

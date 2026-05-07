@@ -1,13 +1,12 @@
-#include "imfwizard/kdm_gen.h"
-#include "imfwizard/portable.h"
-
 #include <algorithm>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
-#include <iostream>
 #include <regex>
 #include <sstream>
+
+#include "imfwizard/kdm_gen.h"
+#include "imfwizard/portable.h"
 
 namespace imfwizard
 {

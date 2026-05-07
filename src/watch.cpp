@@ -1,3 +1,9 @@
+#include <spdlog/spdlog.h>
+
+#include <chrono>
+#include <set>
+#include <thread>
+
 #include "imfwizard/watch.h"
 #include "imfwizard/imp.h"
 #include "imfwizard/portable.h"
@@ -6,11 +12,6 @@
 #include "dcpdoctor/auto_qc.h"
 #include "dcpdoctor/hdr_validate.h"
 #include "dcpdoctor/checksum_verify.h"
-#include <spdlog/spdlog.h>
-
-#include <chrono>
-#include <set>
-#include <thread>
 
 #ifdef __linux__
 #include <poll.h>

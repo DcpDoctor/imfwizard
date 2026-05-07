@@ -1,8 +1,9 @@
-#include "imfwizard/uuid.h"
 #include <KM_prng.h>
 #include <KM_util.h>
 #include <array>
 #include <cstring>
+
+#include "imfwizard/uuid.h"
 
 namespace imfwizard
 {

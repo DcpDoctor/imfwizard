@@ -1,11 +1,12 @@
-#include "imfwizard/pkl.h"
-#include "imfwizard/uuid.h"
-#include "imfwizard/hash.h"
-#include "imfwizard/portable.h"
 #include <libxml/tree.h>
 #include <spdlog/spdlog.h>
 #include <ctime>
 #include <stdexcept>
+
+#include "imfwizard/pkl.h"
+#include "imfwizard/uuid.h"
+#include "imfwizard/hash.h"
+#include "imfwizard/portable.h"
 
 namespace imfwizard
 {

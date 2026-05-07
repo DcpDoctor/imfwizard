@@ -1,13 +1,12 @@
-#include "imfwizard/imp_diff.h"
-#include "imfwizard/portable.h"
-
 #include <algorithm>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <regex>
 #include <set>
 #include <sstream>
+
+#include "imfwizard/imp_diff.h"
+#include "imfwizard/portable.h"
 
 namespace imfwizard
 {

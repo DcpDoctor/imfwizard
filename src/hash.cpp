@@ -1,10 +1,11 @@
-#include "imfwizard/hash.h"
 #include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 #include <fstream>
 #include <vector>
 #include <stdexcept>
+
+#include "imfwizard/hash.h"
 
 namespace imfwizard
 {

@@ -1,5 +1,6 @@
-#include "imfwizard/hdr.h"
 #include <sstream>
+
+#include "imfwizard/hdr.h"
 
 namespace imfwizard
 {

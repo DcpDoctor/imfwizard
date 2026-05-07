@@ -1,11 +1,11 @@
-#include "imfwizard/edl_import.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
-
 #include <algorithm>
 #include <fstream>
 #include <regex>
 #include <sstream>
+
+#include "imfwizard/edl_import.h"
+#include "imfwizard/portable.h"
 
 namespace fs = std::filesystem;
 

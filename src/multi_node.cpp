@@ -1,13 +1,14 @@
-#include "imfwizard/multi_node.h"
-#include "imfwizard/portable.h"
+#include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <fstream>
-#include <iostream>
 #include <sstream>
 #include <thread>
+
+#include "imfwizard/multi_node.h"
+#include "imfwizard/portable.h"
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -234,7 +235,7 @@ int run_render_worker(uint16_t port, uint32_t /*max_threads*/)
   int server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (server_fd < 0)
   {
-    std::cerr << "Failed to create socket\n";
+    spdlog::error("Failed to create socket");
     return 1;
   }
 
@@ -248,12 +249,12 @@ int run_render_worker(uint16_t port, uint32_t /*max_threads*/)
 
   if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0)
   {
-    std::cerr << "Failed to bind to port " << port << "\n";
+    spdlog::error("Failed to bind to port {}", port);
     return 1;
   }
 
   listen(server_fd, 8);
-  std::cout << "Render worker listening on port " << port << "\n";
+  spdlog::info("Render worker listening on port {}", port);
 
   while (true)
   {
@@ -283,7 +284,7 @@ int run_render_worker(uint16_t port, uint32_t /*max_threads*/)
       send(client_fd, ack.c_str(), ack.size(), 0);
 
       // In production, would fork/thread here and run the encode
-      std::cout << "Received encode command: " << cmd;
+      spdlog::info("Received encode command: {}", cmd);
     }
     else if (cmd.starts_with("PING"))
     {

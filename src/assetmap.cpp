@@ -1,10 +1,11 @@
-#include "imfwizard/assetmap.h"
-#include "imfwizard/uuid.h"
-#include "imfwizard/portable.h"
 #include <libxml/tree.h>
 #include <spdlog/spdlog.h>
 #include <ctime>
 #include <stdexcept>
+
+#include "imfwizard/assetmap.h"
+#include "imfwizard/uuid.h"
+#include "imfwizard/portable.h"
 
 namespace imfwizard
 {

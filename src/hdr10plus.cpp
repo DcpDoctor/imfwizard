@@ -1,7 +1,8 @@
-#include "imfwizard/hdr10plus.h"
 #include <spdlog/spdlog.h>
 #include <fstream>
 #include <sstream>
+
+#include "imfwizard/hdr10plus.h"
 
 namespace imfwizard
 {

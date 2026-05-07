@@ -1,11 +1,12 @@
-#include "imfwizard/timecode.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <regex>
 #include <sstream>
+
+#include "imfwizard/timecode.h"
+#include "imfwizard/portable.h"
 
 namespace imfwizard
 {

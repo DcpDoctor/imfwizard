@@ -1,10 +1,11 @@
-#include "imfwizard/signature.h"
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <spdlog/spdlog.h>
 #include <fstream>
 #include <stdexcept>
+
+#include "imfwizard/signature.h"
 
 namespace imfwizard
 {

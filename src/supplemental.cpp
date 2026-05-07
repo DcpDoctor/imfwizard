@@ -1,3 +1,7 @@
+#include <spdlog/spdlog.h>
+#include <filesystem>
+#include <stdexcept>
+
 #include "imfwizard/supplemental.h"
 #include "imfwizard/info.h"
 #include "imfwizard/mxf_wrap.h"
@@ -6,9 +10,6 @@
 #include "imfwizard/assetmap.h"
 #include "imfwizard/uuid.h"
 #include "imfwizard/hash.h"
-#include <spdlog/spdlog.h>
-#include <filesystem>
-#include <stdexcept>
 
 namespace imfwizard
 {

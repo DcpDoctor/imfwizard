@@ -1,8 +1,9 @@
-#include "imfwizard/dolby_vision.h"
 #include <spdlog/spdlog.h>
 #include <array>
 #include <cstdio>
 #include <fstream>
+
+#include "imfwizard/dolby_vision.h"
 
 namespace imfwizard
 {

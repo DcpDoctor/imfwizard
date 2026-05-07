@@ -1,10 +1,11 @@
+#include <spdlog/spdlog.h>
+#include <stdexcept>
+
 #include "imfwizard/multi_cpl.h"
 #include "imfwizard/pkl.h"
 #include "imfwizard/assetmap.h"
 #include "imfwizard/uuid.h"
 #include "imfwizard/hash.h"
-#include <spdlog/spdlog.h>
-#include <stdexcept>
 
 namespace imfwizard
 {

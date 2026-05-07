@@ -1,7 +1,4 @@
-#include "imfwizard/rest_api.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
-
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -11,6 +8,9 @@
 #include <fstream>
 #include <sstream>
 #include <thread>
+
+#include "imfwizard/rest_api.h"
+#include "imfwizard/portable.h"
 
 #ifndef _WIN32
 #include <arpa/inet.h>

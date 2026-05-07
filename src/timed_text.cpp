@@ -1,12 +1,13 @@
-#include "imfwizard/timed_text.h"
-#include "imfwizard/uuid.h"
-#include "imfwizard/hash.h"
 #include <KM_fileio.h>
 #include <AS_02.h>
 #include <Metadata.h>
 #include <spdlog/spdlog.h>
 #include <fstream>
 #include <stdexcept>
+
+#include "imfwizard/timed_text.h"
+#include "imfwizard/uuid.h"
+#include "imfwizard/hash.h"
 
 namespace imfwizard
 {

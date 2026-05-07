@@ -1,8 +1,9 @@
-#include "imfwizard/burnin.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 #include <cstdio>
 #include <cstring>
+
+#include "imfwizard/burnin.h"
+#include "imfwizard/portable.h"
 
 namespace imfwizard
 {

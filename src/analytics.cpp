@@ -1,4 +1,3 @@
-#include "imfwizard/analytics.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cmath>
@@ -6,6 +5,8 @@
 #include <fstream>
 #include <numeric>
 #include <sstream>
+
+#include "imfwizard/analytics.h"
 
 namespace imfwizard
 {

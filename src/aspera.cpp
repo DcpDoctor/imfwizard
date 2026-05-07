@@ -1,7 +1,8 @@
-#include "imfwizard/aspera.h"
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <chrono>
+
+#include "imfwizard/aspera.h"
 
 namespace imfwizard
 {

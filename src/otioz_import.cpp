@@ -1,12 +1,11 @@
-#include "imfwizard/otioz_import.h"
-#include "imfwizard/portable.h"
-
 #include <algorithm>
 #include <cstring>
 #include <fstream>
-#include <iostream>
 #include <regex>
 #include <sstream>
+
+#include "imfwizard/otioz_import.h"
+#include "imfwizard/portable.h"
 
 namespace imfwizard
 {

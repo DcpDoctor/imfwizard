@@ -1,12 +1,12 @@
-#include "imfwizard/plugin.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
-
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+
+#include "imfwizard/plugin.h"
+#include "imfwizard/portable.h"
 
 namespace fs = std::filesystem;
 

@@ -1,10 +1,11 @@
-#include "imfwizard/report.h"
-#include "imfwizard/info.h"
 #include <spdlog/spdlog.h>
 #include <fstream>
 #include <sstream>
 #include <chrono>
 #include <ctime>
+
+#include "imfwizard/report.h"
+#include "imfwizard/info.h"
 
 namespace imfwizard
 {

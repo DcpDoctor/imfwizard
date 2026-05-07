@@ -1,12 +1,13 @@
+#include <spdlog/spdlog.h>
+#include <cstdio>
+#include <fstream>
+#include <sstream>
+
 #include "imfwizard/dcp_convert.h"
 #include "imfwizard/info.h"
 #include "imfwizard/extract.h"
 #include "imfwizard/portable.h"
 #include "imfwizard/uuid.h"
-#include <spdlog/spdlog.h>
-#include <cstdio>
-#include <fstream>
-#include <sstream>
 
 namespace imfwizard
 {

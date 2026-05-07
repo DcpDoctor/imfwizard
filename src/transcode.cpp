@@ -1,10 +1,11 @@
-#include "imfwizard/transcode.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 #include <array>
 #include <cstdio>
 #include <sstream>
 #include <algorithm>
+
+#include "imfwizard/transcode.h"
+#include "imfwizard/portable.h"
 
 namespace imfwizard
 {

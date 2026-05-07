@@ -1,5 +1,6 @@
-#include "imfwizard/mca.h"
 #include <sstream>
+
+#include "imfwizard/mca.h"
 
 namespace imfwizard
 {

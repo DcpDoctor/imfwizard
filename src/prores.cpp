@@ -1,3 +1,8 @@
+#include <spdlog/spdlog.h>
+#include <cstdio>
+#include <cstring>
+#include <sstream>
+
 #include "imfwizard/prores.h"
 #include "imfwizard/portable.h"
 #include "imfwizard/uuid.h"
@@ -5,10 +10,6 @@
 #include "imfwizard/assetmap.h"
 #include "imfwizard/cpl.h"
 #include "imfwizard/hash.h"
-#include <spdlog/spdlog.h>
-#include <cstdio>
-#include <cstring>
-#include <sstream>
 
 namespace imfwizard
 {

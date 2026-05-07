@@ -1,9 +1,10 @@
-#include "imfwizard/watermark.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <fstream>
 #include <random>
 #include <vector>
+
+#include "imfwizard/watermark.h"
 
 namespace imfwizard
 {

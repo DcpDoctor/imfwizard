@@ -1,5 +1,6 @@
-#include "imfwizard/accessibility.h"
 #include <sstream>
+
+#include "imfwizard/accessibility.h"
 
 namespace imfwizard
 {

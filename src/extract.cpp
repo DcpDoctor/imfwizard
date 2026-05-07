@@ -1,8 +1,9 @@
-#include "imfwizard/extract.h"
-#include "imfwizard/info.h"
 #include <spdlog/spdlog.h>
 #include <fstream>
 #include <cstdio>
+
+#include "imfwizard/extract.h"
+#include "imfwizard/info.h"
 
 namespace imfwizard
 {

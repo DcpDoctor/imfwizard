@@ -1,10 +1,11 @@
-#include "imfwizard/webhook.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 #include <array>
 #include <chrono>
 #include <cstdio>
 #include <sstream>
+
+#include "imfwizard/webhook.h"
+#include "imfwizard/portable.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN

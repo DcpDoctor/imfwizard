@@ -1,10 +1,11 @@
-#include "imfwizard/cpl.h"
-#include "imfwizard/uuid.h"
-#include "imfwizard/hash.h"
 #include <libxml/tree.h>
 #include <libxml/xmlwriter.h>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
+
+#include "imfwizard/cpl.h"
+#include "imfwizard/uuid.h"
+#include "imfwizard/hash.h"
 
 namespace imfwizard
 {

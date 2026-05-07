@@ -1,7 +1,4 @@
-#include "imfwizard/job_queue.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
-
 #include <algorithm>
 #include <array>
 #include <cstdio>
@@ -10,6 +7,9 @@
 #include <fstream>
 #include <sstream>
 #include <thread>
+
+#include "imfwizard/job_queue.h"
+#include "imfwizard/portable.h"
 
 #ifndef _WIN32
 #include <poll.h>

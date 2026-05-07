@@ -1,6 +1,7 @@
-#include "imfwizard/cloud.h"
 #include <spdlog/spdlog.h>
 #include <sstream>
+
+#include "imfwizard/cloud.h"
 
 namespace imfwizard
 {

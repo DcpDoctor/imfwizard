@@ -1,10 +1,10 @@
-#include "imfwizard/slate.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
-
 #include <cstdio>
 #include <filesystem>
 #include <sstream>
+
+#include "imfwizard/slate.h"
+#include "imfwizard/portable.h"
 
 namespace fs = std::filesystem;
 

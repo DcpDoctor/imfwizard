@@ -1,4 +1,3 @@
-#include "imfwizard/subtitle_convert.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cmath>
@@ -6,6 +5,8 @@
 #include <iomanip>
 #include <regex>
 #include <sstream>
+
+#include "imfwizard/subtitle_convert.h"
 
 namespace imfwizard
 {

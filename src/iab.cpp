@@ -1,8 +1,9 @@
-#include "imfwizard/iab.h"
-#include "imfwizard/uuid.h"
 #include <spdlog/spdlog.h>
 #include <fstream>
 #include <cstring>
+
+#include "imfwizard/iab.h"
+#include "imfwizard/uuid.h"
 
 namespace imfwizard
 {

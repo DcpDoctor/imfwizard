@@ -1,7 +1,8 @@
-#include "imfwizard/shell_completion.h"
 #include <cstdlib>
 #include <sstream>
 #include <string>
+
+#include "imfwizard/shell_completion.h"
 
 namespace imfwizard
 {

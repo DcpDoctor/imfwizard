@@ -1,10 +1,11 @@
-#include "imfwizard/info.h"
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <stdexcept>
+
+#include "imfwizard/info.h"
 
 namespace fs = std::filesystem;
 

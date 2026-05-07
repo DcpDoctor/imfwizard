@@ -1,9 +1,10 @@
-#include "imfwizard/conform.h"
-#include "imfwizard/imp.h"
 #include <spdlog/spdlog.h>
 #include <fstream>
 #include <sstream>
 #include <regex>
+
+#include "imfwizard/conform.h"
+#include "imfwizard/imp.h"
 
 namespace imfwizard
 {

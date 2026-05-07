@@ -1,11 +1,12 @@
-#include "imfwizard/pdf_report.h"
-#include "imfwizard/report.h"
-#include "imfwizard/portable.h"
 #include <spdlog/spdlog.h>
 #include <array>
 #include <cstdio>
 #include <fstream>
 #include <sstream>
+
+#include "imfwizard/pdf_report.h"
+#include "imfwizard/report.h"
+#include "imfwizard/portable.h"
 
 namespace fs = std::filesystem;
 

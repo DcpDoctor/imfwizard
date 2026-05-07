@@ -1,9 +1,10 @@
+#include <spdlog/spdlog.h>
+#include <filesystem>
+
 #include "imfwizard/batch_deliver.h"
 #include "imfwizard/profiles.h"
 #include "imfwizard/imfwizard.h"
 #include "imfwizard/encode.h"
-#include <spdlog/spdlog.h>
-#include <filesystem>
 
 namespace imfwizard
 {
