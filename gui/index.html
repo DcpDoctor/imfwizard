@@ -13,7 +13,15 @@
       <p class="subtitle">Interoperable Master Format Package Creator</p>
     </header>
 
+    <nav class="nav-tabs">
+      <button class="active" data-page="create-page">Create</button>
+      <button data-page="timeline-page">Timeline</button>
+      <button data-page="transcode-page">Transcode</button>
+      <button data-page="validate-page">Validate</button>
+    </nav>
+
     <main>
+      <section class="page active" id="create-page">
       <section class="panel" id="create-panel">
         <h2>Create Original Version IMP</h2>
         <form id="create-form">
@@ -61,6 +69,61 @@
       <section class="panel" id="output-panel" hidden>
         <h2>Result</h2>
         <pre id="output-log"></pre>
+      </section>
+      </section>
+
+      <section class="page" id="timeline-page">
+        <!-- Populated by timeline.js -->
+      </section>
+
+      <section class="page" id="transcode-page">
+        <section class="panel">
+          <h2>Transcode Video</h2>
+          <div class="field">
+            <label>Input Video File</label>
+            <button type="button" id="tc-select-input">Browse...</button>
+            <span id="tc-input-path" class="path-display">No file selected</span>
+          </div>
+          <div class="field">
+            <label>Output Directory</label>
+            <button type="button" id="tc-select-output">Browse...</button>
+            <span id="tc-output-path" class="path-display">No directory selected</span>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Format</label>
+              <select id="tc-format">
+                <option value="tiff">TIFF</option>
+                <option value="dpx">DPX</option>
+                <option value="exr">EXR</option>
+                <option value="png">PNG</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Bit Depth</label>
+              <select id="tc-bitdepth">
+                <option value="16">16-bit</option>
+                <option value="10">10-bit</option>
+                <option value="8">8-bit</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn-primary" id="tc-start">Transcode</button>
+          <pre id="tc-log" style="margin-top:1rem; display:none;"></pre>
+        </section>
+      </section>
+
+      <section class="page" id="validate-page">
+        <section class="panel">
+          <h2>Validate IMP</h2>
+          <div class="field">
+            <label>IMP Directory</label>
+            <button type="button" id="val-select">Browse...</button>
+            <span id="val-path" class="path-display">No directory selected</span>
+          </div>
+          <button class="btn-primary" id="val-start">Validate</button>
+          <pre id="val-log" style="margin-top:1rem; display:none;"></pre>
+        </section>
       </section>
     </main>
   </div>

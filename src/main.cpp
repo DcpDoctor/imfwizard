@@ -4,6 +4,10 @@
 #include "imfwizard/validate.h"
 #include "imfwizard/transcode.h"
 #include "imfwizard/dolby_vision.h"
+#include "imfwizard/extract.h"
+#include "imfwizard/report.h"
+#include "imfwizard/conform.h"
+#include "imfwizard/watch.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <filesystem>
@@ -102,6 +106,45 @@ int main(int argc, char* argv[])
     trans_cmd->add_option("-f,--format", trans_format, "Output format (tiff, dpx, exr, png)")->default_val("tiff");
     trans_cmd->add_option("--bit-depth", trans_bit_depth, "Output bit depth")->default_val(16);
     trans_cmd->add_option("--threads", trans_threads, "Number of threads (0=auto)")->default_val(0);
+
+    // === EXTRACT subcommand ===
+    auto* extract_cmd = app.add_subcommand("extract", "Extract tracks from an existing IMP");
+    std::string ext_imp_dir, ext_output, ext_format = "j2c";
+    uint32_t ext_start = 0, ext_end = 0;
+
+    extract_cmd->add_option("imp_dir", ext_imp_dir, "IMP directory")->required()
+        ->check(CLI::ExistingDirectory);
+    extract_cmd->add_option("-o,--output", ext_output, "Output directory")->required();
+    extract_cmd->add_option("-f,--format", ext_format, "Output format")->default_val("j2c");
+    extract_cmd->add_option("--start", ext_start, "Start frame")->default_val(0);
+    extract_cmd->add_option("--end", ext_end, "End frame (0=all)")->default_val(0);
+
+    // === CONFORM subcommand ===
+    auto* conform_cmd = app.add_subcommand("conform", "Create IMP from EDL/AAF");
+    std::string conf_edl, conf_media, conf_output, conf_title;
+
+    conform_cmd->add_option("-e,--edl", conf_edl, "EDL or AAF file")->required()
+        ->check(CLI::ExistingFile);
+    conform_cmd->add_option("-m,--media", conf_media, "Media directory with reels")->required()
+        ->check(CLI::ExistingDirectory);
+    conform_cmd->add_option("-o,--output", conf_output, "Output IMP directory")->required();
+    conform_cmd->add_option("-t,--title", conf_title, "Content title")->default_val("Conformed IMP");
+
+    // === WATCH subcommand ===
+    auto* watch_cmd = app.add_subcommand("watch", "Watch folder for auto-IMP creation");
+    std::string watch_dir, watch_output;
+
+    watch_cmd->add_option("-w,--watch", watch_dir, "Directory to watch")->required()
+        ->check(CLI::ExistingDirectory);
+    watch_cmd->add_option("-o,--output", watch_output, "Output base directory")->required();
+
+    // === REPORT subcommand ===
+    auto* report_cmd = app.add_subcommand("report", "Generate QC report for an IMP");
+    std::string rpt_imp_dir, rpt_output;
+
+    report_cmd->add_option("imp_dir", rpt_imp_dir, "IMP directory")->required()
+        ->check(CLI::ExistingDirectory);
+    report_cmd->add_option("-o,--output", rpt_output, "Output HTML file")->required();
 
     CLI11_PARSE(app, argc, argv);
 
@@ -247,6 +290,69 @@ int main(int argc, char* argv[])
         std::cout << "Transcoded " << result.frame_count << " frames ("
                   << result.width << "x" << result.height << " @ "
                   << result.fps << " fps) to " << result.output_dir << "\n";
+        return 0;
+    }
+
+    if (extract_cmd->parsed()) {
+        imfwizard::ExtractOptions opts;
+        opts.imp_dir = ext_imp_dir;
+        opts.output_dir = ext_output;
+        opts.output_format = ext_format;
+        opts.start_frame = ext_start;
+        opts.end_frame = ext_end;
+
+        auto result = imfwizard::extract_from_imp(opts);
+        if (!result.success) {
+            spdlog::error("Extract failed: {}", result.error);
+            return 1;
+        }
+        std::cout << "Extracted " << result.video_frames << " video frames, "
+                  << result.extracted_files.size() << " files to "
+                  << result.output_dir << "\n";
+        return 0;
+    }
+
+    if (conform_cmd->parsed()) {
+        imfwizard::ConformOptions opts;
+        opts.edl_file = conf_edl;
+        opts.media_dir = conf_media;
+        opts.output_dir = conf_output;
+        opts.title = conf_title;
+        opts.fps_num = fps_num;
+        opts.fps_den = fps_den;
+
+        auto result = imfwizard::conform_from_edl(opts);
+        if (!result.success) {
+            spdlog::error("Conform failed: {}", result.error);
+            return 1;
+        }
+        std::cout << "Conformed " << result.entries.size() << " events, "
+                  << result.total_duration << " total frames\n";
+        return 0;
+    }
+
+    if (watch_cmd->parsed()) {
+        imfwizard::WatchConfig config;
+        config.watch_dir = watch_dir;
+        config.output_dir = watch_output;
+        config.on_status = [](const std::string& msg) {
+            std::cout << "[watch] " << msg << "\n";
+        };
+
+        std::atomic<bool> stop{false};
+        std::cout << "Watching " << watch_dir << " (Ctrl+C to stop)...\n";
+        imfwizard::watch_folder(config, stop);
+        return 0;
+    }
+
+    if (report_cmd->parsed()) {
+        auto validation = imfwizard::validate_with_photon(rpt_imp_dir);
+        imfwizard::QcReportOptions opts;
+        opts.imp_dir = rpt_imp_dir;
+        opts.validation = validation;
+        opts.title = std::filesystem::path(rpt_imp_dir).filename().string();
+        imfwizard::write_qc_report(opts, rpt_output);
+        std::cout << "QC report written to " << rpt_output << "\n";
         return 0;
     }
 

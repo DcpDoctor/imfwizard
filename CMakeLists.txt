@@ -48,6 +48,13 @@ add_library(imfwizard_core STATIC
     src/multi_cpl.cpp
     src/transcode.cpp
     src/dolby_vision.cpp
+    src/hdr.cpp
+    src/iab.cpp
+    src/audio_lang.cpp
+    src/watch.cpp
+    src/extract.cpp
+    src/report.cpp
+    src/conform.cpp
     src/uuid.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
