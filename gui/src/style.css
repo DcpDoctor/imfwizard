@@ -1,0 +1,141 @@
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --primary: #0f3460;
+  --accent: #e94560;
+  --text: #eaeaea;
+  --text-muted: #a0a0a0;
+  --border: #2a2a4a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+header h1 {
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+.subtitle {
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.panel h2 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.field button {
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--primary);
+  color: var(--text);
+  cursor: pointer;
+  margin-right: 0.5rem;
+}
+
+.field button:hover {
+  background: var(--accent);
+}
+
+.path-display {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.field-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.field-row .field {
+  flex: 1;
+}
+
+.btn-primary {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  background: var(--accent);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#output-log {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1rem;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+}

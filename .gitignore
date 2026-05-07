@@ -1,0 +1,10 @@
+build/
+gui/node_modules/
+gui/dist/
+gui/src-tauri/target/
+*.o
+*.a
+*.so
+*.dylib
+compile_commands.json
+.cache/

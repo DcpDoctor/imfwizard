@@ -1,0 +1,81 @@
+cmake_minimum_required(VERSION 3.25)
+project(imfwizard
+    VERSION 0.1.0
+    DESCRIPTION "IMF Wizard — Interoperable Master Format package creator"
+    LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Dependencies
+if(WIN32)
+    find_package(LibXml2 REQUIRED)
+    find_package(OpenSSL REQUIRED)
+    find_package(XercesC REQUIRED)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBXML2 REQUIRED IMPORTED_TARGET libxml-2.0)
+    pkg_check_modules(OPENSSL REQUIRED IMPORTED_TARGET openssl)
+    pkg_check_modules(XERCES REQUIRED IMPORTED_TARGET xerces-c)
+endif()
+
+# CLI11 (header-only)
+add_subdirectory(extern/CLI11 EXCLUDE_FROM_ALL)
+
+# spdlog
+add_subdirectory(extern/spdlog EXCLUDE_FROM_ALL)
+
+# asdcplib
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+add_subdirectory(extern/asdcplib EXCLUDE_FROM_ALL)
+
+# Core library
+add_library(imfwizard_core STATIC
+    src/mxf_wrap.cpp
+    src/cpl.cpp
+    src/pkl.cpp
+    src/assetmap.cpp
+    src/hash.cpp
+    src/signature.cpp
+    src/imp.cpp
+    src/uuid.cpp)
+
+target_include_directories(imfwizard_core PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/extern/asdcplib/src)
+
+if(WIN32)
+    target_compile_definitions(imfwizard_core PUBLIC KM_WIN32)
+    target_link_libraries(imfwizard_core PUBLIC
+        LibXml2::LibXml2
+        OpenSSL::SSL OpenSSL::Crypto
+        XercesC::XercesC
+        spdlog::spdlog
+        libas02
+        libasdcp
+        libkumu)
+else()
+    target_link_libraries(imfwizard_core PUBLIC
+        PkgConfig::LIBXML2
+        PkgConfig::OPENSSL
+        PkgConfig::XERCES
+        spdlog::spdlog
+        libas02
+        libasdcp
+        libkumu)
+endif()
+
+# CLI tool
+add_executable(imfwizard src/main.cpp)
+target_link_libraries(imfwizard PRIVATE imfwizard_core CLI11::CLI11)
+
+# Tests
+option(BUILD_TESTING "Build tests" ON)
+if(BUILD_TESTING)
+    enable_testing()
+    add_executable(imfwizard_test tests/test_main.cpp)
+    target_link_libraries(imfwizard_test PRIVATE imfwizard_core)
+    add_test(NAME imfwizard_test COMMAND imfwizard_test)
+endif()

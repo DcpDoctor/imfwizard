@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IMF Wizard</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>IMF Wizard</h1>
+      <p class="subtitle">Interoperable Master Format Package Creator</p>
+    </header>
+
+    <main>
+      <section class="panel" id="create-panel">
+        <h2>Create Original Version IMP</h2>
+        <form id="create-form">
+          <div class="field">
+            <label for="title">Content Title</label>
+            <input type="text" id="title" required />
+          </div>
+          <div class="field">
+            <label for="issuer">Issuer</label>
+            <input type="text" id="issuer" value="IMF Wizard" />
+          </div>
+          <div class="field">
+            <label for="video-dir">J2K Codestream Directory</label>
+            <button type="button" id="select-video">Browse...</button>
+            <span id="video-path" class="path-display">No directory selected</span>
+          </div>
+          <div class="field">
+            <label for="audio-file">Audio File (WAV)</label>
+            <button type="button" id="select-audio">Browse...</button>
+            <span id="audio-path" class="path-display">No file selected</span>
+          </div>
+          <div class="field">
+            <label for="output-dir">Output Directory</label>
+            <button type="button" id="select-output">Browse...</button>
+            <span id="output-path" class="path-display">No directory selected</span>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="fps">Frame Rate</label>
+              <select id="fps">
+                <option value="24/1">24 fps</option>
+                <option value="25/1">25 fps</option>
+                <option value="30000/1001">29.97 fps</option>
+                <option value="30/1">30 fps</option>
+                <option value="48/1">48 fps</option>
+                <option value="60000/1001">59.94 fps</option>
+                <option value="60/1">60 fps</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" id="create-btn">Create IMP</button>
+        </form>
+      </section>
+
+      <section class="panel" id="output-panel" hidden>
+        <h2>Result</h2>
+        <pre id="output-log"></pre>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
