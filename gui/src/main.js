@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { Command } from "@tauri-apps/plugin-shell";
 import { sendNotification, isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { initTimeline } from "./timeline.js";
@@ -578,4 +578,181 @@ document.querySelectorAll(".nav-tabs button[data-page]").forEach(btn => {
       if (jobsPollInterval) { clearInterval(jobsPollInterval); jobsPollInterval = null; }
     }
   });
+});
+
+// ========== BURN-IN ==========
+let biVideoPath = "", biSubsPath = "", biOutputPath = "";
+
+document.getElementById("bi-select-video")?.addEventListener("click", async () => {
+  const f = await open({ filters: [{ name: "Video", extensions: ["mp4", "mov", "mkv", "mxf"] }] });
+  if (f) { biVideoPath = f; document.getElementById("bi-video-path").textContent = f; }
+});
+document.getElementById("bi-select-subs")?.addEventListener("click", async () => {
+  const f = await open({ filters: [{ name: "Subtitles", extensions: ["srt", "ttml", "xml", "scc"] }] });
+  if (f) { biSubsPath = f; document.getElementById("bi-subs-path").textContent = f; }
+});
+document.getElementById("bi-select-output")?.addEventListener("click", async () => {
+  const f = await save({ filters: [{ name: "Video", extensions: ["mp4", "mov", "mkv"] }] });
+  if (f) { biOutputPath = f; document.getElementById("bi-output-path").textContent = f; }
+});
+document.getElementById("bi-start")?.addEventListener("click", async () => {
+  if (!biVideoPath || !biSubsPath) { alert("Select video and subtitle files"); return; }
+  const log = document.getElementById("bi-log");
+  log.style.display = "block";
+  log.textContent = "Burning in subtitles...";
+  const args = ["burn-in", "-i", biVideoPath, "-s", biSubsPath];
+  if (biOutputPath) args.push("-o", biOutputPath);
+  const font = document.getElementById("bi-font").value;
+  const fontSize = document.getElementById("bi-fontsize").value;
+  if (font) args.push("--font", font);
+  if (fontSize) args.push("--font-size", fontSize);
+  const r = await Command.sidecar("imfwizard", args).execute();
+  log.textContent = r.code === 0 ? r.stdout : "Error: " + r.stderr;
+  if (r.code === 0) notify("Burn-in complete");
+});
+
+// ========== ANALYTICS ==========
+let anPath = "";
+
+document.getElementById("an-select")?.addEventListener("click", async () => {
+  const d = await open({ directory: true });
+  if (d) { anPath = d; document.getElementById("an-path").textContent = d; }
+});
+
+document.getElementById("an-analyze")?.addEventListener("click", async () => {
+  if (!anPath) { alert("Select a J2K directory"); return; }
+  const fpsVal = document.getElementById("an-fps").value;
+  const [fpsNum, fpsDen] = fpsVal.split("/");
+  const args = ["analytics", "-d", anPath, "--fps-num", fpsNum, "--fps-den", fpsDen, "--json"];
+  const r = await Command.sidecar("imfwizard", args).execute();
+  if (r.code !== 0) { alert("Analytics failed: " + r.stderr); return; }
+
+  const data = JSON.parse(r.stdout);
+  document.getElementById("an-results").style.display = "block";
+  document.getElementById("an-frames").textContent = data.total_frames;
+  document.getElementById("an-duration").textContent = data.duration_seconds.toFixed(1) + "s";
+  document.getElementById("an-size").textContent = (data.total_bytes / (1024 * 1024)).toFixed(1) + " MB";
+  document.getElementById("an-avg").textContent = data.avg_bitrate_mbps.toFixed(2) + " Mbps";
+  document.getElementById("an-peak").textContent = data.peak_bitrate_mbps.toFixed(2) + " Mbps";
+  document.getElementById("an-min").textContent = data.min_bitrate_mbps.toFixed(2) + " Mbps";
+  document.getElementById("an-stddev").textContent = data.stddev_bitrate_mbps.toFixed(2) + " Mbps";
+
+  // Draw per-second bitrate chart
+  drawChart("an-chart", data.per_second_bitrate, data.avg_bitrate_mbps);
+  // Draw histogram
+  drawHistogram("an-histogram", data.histogram, data.histogram_min, data.histogram_max);
+});
+
+function drawChart(canvasId, values, avg) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  if (!values || values.length === 0) return;
+
+  const max = Math.max(...values) * 1.1;
+  const barW = w / values.length;
+
+  // Draw average line
+  const avgY = h - (avg / max) * h;
+  ctx.strokeStyle = "#fbbf24";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0, avgY); ctx.lineTo(w, avgY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw bars
+  ctx.fillStyle = "#a78bfa";
+  for (let i = 0; i < values.length; i++) {
+    const barH = (values[i] / max) * h;
+    ctx.fillRect(i * barW, h - barH, Math.max(barW - 1, 1), barH);
+  }
+}
+
+function drawHistogram(canvasId, buckets, min, max) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  if (!buckets || buckets.length === 0) return;
+
+  const peak = Math.max(...buckets);
+  const barW = w / buckets.length;
+  ctx.fillStyle = "#38bdf8";
+  for (let i = 0; i < buckets.length; i++) {
+    const barH = (buckets[i] / peak) * (h - 20);
+    ctx.fillRect(i * barW + 2, h - barH - 20, barW - 4, barH);
+  }
+  // Labels
+  ctx.fillStyle = "#a1a1aa";
+  ctx.font = "11px Inter, sans-serif";
+  ctx.textAlign = "center";
+  for (let i = 0; i < buckets.length; i++) {
+    const val = min + (max - min) * (i + 0.5) / buckets.length;
+    ctx.fillText(val.toFixed(0), i * barW + barW / 2, h - 4);
+  }
+}
+
+// ========== DELIVER ==========
+let delVideoPath = "", delAudioPath = "", delOutputPath = "";
+
+document.getElementById("del-select-video")?.addEventListener("click", async () => {
+  const d = await open({ directory: true });
+  if (d) { delVideoPath = d; document.getElementById("del-video-path").textContent = d; }
+});
+document.getElementById("del-select-audio")?.addEventListener("click", async () => {
+  const f = await open({ filters: [{ name: "Audio", extensions: ["wav"] }] });
+  if (f) { delAudioPath = f; document.getElementById("del-audio-path").textContent = f; }
+});
+document.getElementById("del-select-output")?.addEventListener("click", async () => {
+  const d = await open({ directory: true });
+  if (d) { delOutputPath = d; document.getElementById("del-output-path").textContent = d; }
+});
+document.getElementById("del-start")?.addEventListener("click", async () => {
+  const title = document.getElementById("del-title").value;
+  if (!delVideoPath || !title || !delOutputPath) { alert("Fill video, title, and output"); return; }
+  const checkboxes = document.querySelectorAll("#deliver-page .checkbox-group input:checked, #todcp-page ~ * .checkbox-group input:checked, .page#deliver-page .checkbox-group input:checked");
+  const targets = [];
+  document.querySelectorAll("#deliver-page .checkbox-group input:checked").forEach(cb => targets.push(cb.value));
+  if (targets.length === 0) { alert("Select at least one delivery target"); return; }
+
+  const log = document.getElementById("del-log");
+  log.style.display = "block";
+  log.textContent = "Starting batch delivery to: " + targets.join(", ") + "...\n";
+
+  const args = ["deliver", "-v", delVideoPath, "-t", title, "-o", delOutputPath, "--targets"];
+  args.push(...targets);
+  if (delAudioPath) args.push("-a", delAudioPath);
+
+  const r = await Command.sidecar("imfwizard", args).execute();
+  log.textContent += r.code === 0 ? r.stdout : "Error: " + r.stderr;
+  if (r.code === 0) notify("Batch delivery complete");
+});
+
+// ========== TO-DCP ==========
+let dcpImpPath = "", dcpOutputPath = "";
+
+document.getElementById("dcp-select-imp")?.addEventListener("click", async () => {
+  const d = await open({ directory: true });
+  if (d) { dcpImpPath = d; document.getElementById("dcp-imp-path").textContent = d; }
+});
+document.getElementById("dcp-select-output")?.addEventListener("click", async () => {
+  const d = await open({ directory: true });
+  if (d) { dcpOutputPath = d; document.getElementById("dcp-output-path").textContent = d; }
+});
+document.getElementById("dcp-convert")?.addEventListener("click", async () => {
+  if (!dcpImpPath || !dcpOutputPath) { alert("Select IMP and output directories"); return; }
+  const log = document.getElementById("dcp-log");
+  log.style.display = "block";
+  log.textContent = "Converting IMF to DCP...";
+  const args = ["to-dcp", "-i", dcpImpPath, "-o", dcpOutputPath];
+  const title = document.getElementById("dcp-title").value;
+  const kind = document.getElementById("dcp-kind").value;
+  if (title) args.push("-t", title);
+  if (kind) args.push("-k", kind);
+  const r = await Command.sidecar("imfwizard", args).execute();
+  log.textContent = r.code === 0 ? r.stdout : "Error: " + r.stderr;
+  if (r.code === 0) notify("DCP conversion complete");
 });

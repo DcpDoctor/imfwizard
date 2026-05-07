@@ -83,7 +83,8 @@ def main():
     subcommands = [
         "create", "info", "encode", "validate", "transcode", "extract",
         "conform", "watch", "report", "loudness", "qc", "channel-map",
-        "upload", "captions", "watermark", "profiles", "batch", "daemon"
+        "upload", "captions", "watermark", "profiles", "batch", "daemon",
+        "preview", "prores", "burn-in", "to-dcp", "deliver", "analytics"
     ]
     for cmd in subcommands:
         check_output_contains(f"{cmd} --help", "options", cmd, "--help")
@@ -165,6 +166,41 @@ def main():
     check_output_contains("create help mentions color-space", "color-space", "create", "--help")
     check_output_contains("create help mentions preset", "preset", "create", "--help")
     check_output_contains("create help mentions subtitle", "subtitle", "create", "--help")
+
+    # Preview
+    print("\nPreview:")
+    check_exit_fail("preview no args", "preview")
+    check_exit_fail("preview nonexistent dir", "preview", "-d", "/nonexistent", "-o", "/tmp/out")
+    check_output_contains("preview --help mentions strip", "strip", "preview", "--help")
+
+    # ProRes
+    print("\nProRes:")
+    check_exit_fail("prores no args", "prores")
+    check_exit_fail("prores missing file", "prores", "-i", "/nonexistent.mov", "-o", "/tmp/out", "-t", "Test")
+    check_output_contains("prores --help mentions ProRes", "ProRes", "prores", "--help")
+
+    # Burn-in
+    print("\nBurn-in:")
+    check_exit_fail("burn-in no args", "burn-in")
+    check_exit_fail("burn-in missing files", "burn-in", "-i", "/nonexistent.mp4", "-s", "/nonexistent.srt", "-o", "/tmp/out.mp4")
+    check_output_contains("burn-in --help mentions font", "font", "burn-in", "--help")
+
+    # To-DCP
+    print("\nTo-DCP:")
+    check_exit_fail("to-dcp no args", "to-dcp")
+    check_exit_fail("to-dcp missing imp", "to-dcp", "-i", "/nonexistent", "-o", "/tmp/dcp")
+    check_output_contains("to-dcp --help mentions DCP", "DCP", "to-dcp", "--help")
+
+    # Deliver
+    print("\nDeliver:")
+    check_exit_fail("deliver no args", "deliver")
+    check_output_contains("deliver --help mentions targets", "targets", "deliver", "--help")
+
+    # Analytics
+    print("\nAnalytics:")
+    check_exit_fail("analytics no args", "analytics")
+    check_exit_fail("analytics nonexistent dir", "analytics", "-d", "/nonexistent")
+    check_output_contains("analytics --help mentions json", "json", "analytics", "--help")
 
     # Summary
     print(f"\n{'=' * 32}")

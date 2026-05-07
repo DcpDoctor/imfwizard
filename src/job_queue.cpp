@@ -421,18 +421,119 @@ bool JobQueueClient::is_paused()
 }
 
 #else
-// Windows stub — TODO: implement named pipe version
-bool JobQueueClient::is_daemon_running() { return false; }
-std::optional<uint64_t> JobQueueClient::submit(JobType, const std::string&,
-                                               const std::vector<std::string>&,
-                                               std::optional<uint64_t>, int) { return std::nullopt; }
-std::vector<Job> JobQueueClient::list() { return {}; }
-bool JobQueueClient::cancel(uint64_t) { return false; }
-bool JobQueueClient::set_priority(uint64_t, int) { return false; }
-bool JobQueueClient::pause() { return false; }
-bool JobQueueClient::resume() { return false; }
-bool JobQueueClient::is_paused() { return false; }
-std::optional<Job> JobQueueClient::status(uint64_t) { return std::nullopt; }
+// === Windows named-pipe client implementation ===
+
+static std::string send_to_daemon(const std::string& msg)
+{
+  auto pipe_path = socket_path().string();
+  HANDLE pipe = CreateFileA(
+      pipe_path.c_str(),
+      GENERIC_READ | GENERIC_WRITE,
+      0, nullptr, OPEN_EXISTING, 0, nullptr);
+
+  if(pipe == INVALID_HANDLE_VALUE)
+    return "";
+
+  DWORD mode = PIPE_READMODE_MESSAGE;
+  SetNamedPipeHandleState(pipe, &mode, nullptr, nullptr);
+
+  auto to_send = msg + "\n";
+  DWORD written = 0;
+  if(!WriteFile(pipe, to_send.c_str(), static_cast<DWORD>(to_send.size()), &written, nullptr))
+  {
+    CloseHandle(pipe);
+    return "";
+  }
+
+  // Read response
+  std::string response;
+  char buf[4096];
+  DWORD bytesRead = 0;
+  while(ReadFile(pipe, buf, sizeof(buf) - 1, &bytesRead, nullptr) && bytesRead > 0)
+  {
+    buf[bytesRead] = '\0';
+    response += buf;
+    if(response.find('\n') != std::string::npos)
+      break;
+  }
+  CloseHandle(pipe);
+
+  while(!response.empty() && response.back() == '\n')
+    response.pop_back();
+  return response;
+}
+
+bool JobQueueClient::is_daemon_running()
+{
+  return !send_to_daemon("PING").empty();
+}
+
+std::optional<uint64_t> JobQueueClient::submit(JobType type, const std::string& description,
+                                               const std::vector<std::string>& args,
+                                               std::optional<uint64_t> depends_on,
+                                               int priority)
+{
+  std::ostringstream msg;
+  msg << "SUBMIT " << job_type_to_string(type) << " ";
+  msg << "\"" << description << "\" ";
+  if(depends_on)
+    msg << "dep=" << *depends_on << " ";
+  if(priority != 0)
+    msg << "pri=" << priority << " ";
+  msg << "--";
+  for(auto& a : args)
+    msg << " \"" << a << "\"";
+
+  auto resp = send_to_daemon(msg.str());
+  if(resp.empty()) return std::nullopt;
+  if(resp.substr(0, 3) == "OK ")
+    return static_cast<uint64_t>(std::stoull(resp.substr(3)));
+  return std::nullopt;
+}
+
+std::vector<Job> JobQueueClient::list()
+{
+  auto resp = send_to_daemon("LIST");
+  if(resp.empty()) return {};
+  return parse_jobs_json(resp);
+}
+
+bool JobQueueClient::cancel(uint64_t job_id)
+{
+  auto resp = send_to_daemon("CANCEL " + std::to_string(job_id));
+  return resp == "OK";
+}
+
+std::optional<Job> JobQueueClient::status(uint64_t job_id)
+{
+  auto resp = send_to_daemon("STATUS " + std::to_string(job_id));
+  if(resp.empty() || resp == "NOT_FOUND") return std::nullopt;
+  auto jobs = parse_jobs_json(resp);
+  if(jobs.empty()) return std::nullopt;
+  return jobs[0];
+}
+
+bool JobQueueClient::set_priority(uint64_t job_id, int priority)
+{
+  auto resp = send_to_daemon("PRIORITY " + std::to_string(job_id) + " " + std::to_string(priority));
+  return resp == "OK";
+}
+
+bool JobQueueClient::pause()
+{
+  return send_to_daemon("PAUSE") == "OK";
+}
+
+bool JobQueueClient::resume()
+{
+  return send_to_daemon("RESUME") == "OK";
+}
+
+bool JobQueueClient::is_paused()
+{
+  return send_to_daemon("IS_PAUSED") == "true";
+}
+
 #endif
 
 // === Daemon implementation ===
@@ -828,16 +929,294 @@ int JobQueueDaemon::run()
 }
 
 #else
-// Windows stub
-JobQueueDaemon::JobQueueDaemon() {}
-JobQueueDaemon::~JobQueueDaemon() {}
-int JobQueueDaemon::run() { return 1; }
-void JobQueueDaemon::stop() {}
-void JobQueueDaemon::load_jobs() {}
-void JobQueueDaemon::save_jobs() {}
-void JobQueueDaemon::process_next() {}
-void JobQueueDaemon::execute_job(Job&) {}
+// === Windows named-pipe daemon implementation ===
+
+JobQueueDaemon::JobQueueDaemon()
+{
+  load_jobs();
+  for(auto& j : jobs_)
+    if(j.id >= next_id_)
+      next_id_ = j.id + 1;
+}
+
+JobQueueDaemon::~JobQueueDaemon() { stop(); }
+
+void JobQueueDaemon::stop() { running_ = false; }
+
+void JobQueueDaemon::load_jobs()
+{
+  auto path = jobs_file_path();
+  if(!std::filesystem::exists(path)) return;
+  std::ifstream f(path);
+  std::string json((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+  jobs_ = parse_jobs_json(json);
+}
+
+void JobQueueDaemon::save_jobs()
+{
+  auto path = jobs_file_path();
+  std::filesystem::create_directories(path.parent_path());
+  std::ofstream f(path);
+  f << jobs_to_json(jobs_);
+}
+
+void JobQueueDaemon::process_next()
+{
+  if(paused_) return;
+  for(auto& j : jobs_)
+  {
+    if(j.state != JobState::Queued) continue;
+    if(j.depends_on)
+    {
+      bool dep_done = false;
+      for(auto& d : jobs_)
+        if(d.id == *j.depends_on && d.state == JobState::Completed)
+          dep_done = true;
+      if(!dep_done) continue;
+    }
+    execute_job(j);
+    break;
+  }
+}
+
+void JobQueueDaemon::execute_job(Job& job)
+{
+  job.state = JobState::Running;
+  job.started_at = std::chrono::system_clock::now();
+  save_jobs();
+
+  // Build command: imfwizard <args>
+  std::string cmd = "imfwizard";
+  for(auto& a : job.args)
+    cmd += " \"" + a + "\"";
+
+  int ret = system(cmd.c_str());
+  job.finished_at = std::chrono::system_clock::now();
+  if(ret == 0)
+  {
+    job.state = JobState::Completed;
+    job.progress = 100.0f;
+  }
+  else
+  {
+    job.state = JobState::Failed;
+    job.error = "Exit code " + std::to_string(ret);
+  }
+  save_jobs();
+}
+
 void JobQueueDaemon::handle_client(int) {}
+
+static std::string handle_message(JobQueueDaemon& daemon, const std::string& msg,
+                                  std::vector<Job>& jobs, uint64_t& next_id, bool& paused);
+
+int JobQueueDaemon::run()
+{
+  auto pipe_path = socket_path().string();
+  running_ = true;
+
+  spdlog::info("Daemon starting on named pipe: {}", pipe_path);
+
+  while(running_)
+  {
+    HANDLE pipe = CreateNamedPipeA(
+        pipe_path.c_str(),
+        PIPE_ACCESS_DUPLEX,
+        PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+        PIPE_UNLIMITED_INSTANCES,
+        4096, 4096, 0, nullptr);
+
+    if(pipe == INVALID_HANDLE_VALUE)
+    {
+      spdlog::error("Failed to create named pipe");
+      return 1;
+    }
+
+    if(!ConnectNamedPipe(pipe, nullptr))
+    {
+      CloseHandle(pipe);
+      continue;
+    }
+
+    // Read client message
+    char buf[4096];
+    DWORD bytesRead = 0;
+    std::string msg;
+    if(ReadFile(pipe, buf, sizeof(buf) - 1, &bytesRead, nullptr) && bytesRead > 0)
+    {
+      buf[bytesRead] = '\0';
+      msg = buf;
+      while(!msg.empty() && msg.back() == '\n')
+        msg.pop_back();
+    }
+
+    // Handle message
+    std::string response;
+    if(msg == "PING")
+    {
+      response = "PONG\n";
+    }
+    else if(msg == "LIST")
+    {
+      response = jobs_to_json(jobs_) + "\n";
+    }
+    else if(msg == "PAUSE")
+    {
+      paused_ = true;
+      response = "OK\n";
+    }
+    else if(msg == "RESUME")
+    {
+      paused_ = false;
+      response = "OK\n";
+    }
+    else if(msg == "IS_PAUSED")
+    {
+      response = (paused_ ? "true" : "false");
+      response += "\n";
+    }
+    else if(msg.substr(0, 7) == "CANCEL ")
+    {
+      auto id = std::stoull(msg.substr(7));
+      bool found = false;
+      for(auto& j : jobs_)
+      {
+        if(j.id == id && j.state == JobState::Queued)
+        {
+          j.state = JobState::Cancelled;
+          found = true;
+          break;
+        }
+      }
+      response = found ? "OK\n" : "NOT_FOUND\n";
+      if(found) save_jobs();
+    }
+    else if(msg.substr(0, 7) == "STATUS ")
+    {
+      auto id = std::stoull(msg.substr(7));
+      bool found = false;
+      for(auto& j : jobs_)
+      {
+        if(j.id == id)
+        {
+          response = "[" + job_to_json(j) + "]\n";
+          found = true;
+          break;
+        }
+      }
+      if(!found) response = "NOT_FOUND\n";
+    }
+    else if(msg.substr(0, 9) == "PRIORITY ")
+    {
+      auto rest = msg.substr(9);
+      auto sp = rest.find(' ');
+      if(sp != std::string::npos)
+      {
+        auto id = std::stoull(rest.substr(0, sp));
+        auto pri = std::stoi(rest.substr(sp + 1));
+        bool found = false;
+        for(auto& j : jobs_)
+        {
+          if(j.id == id)
+          {
+            j.priority = pri;
+            found = true;
+            break;
+          }
+        }
+        response = found ? "OK\n" : "NOT_FOUND\n";
+        if(found) save_jobs();
+      }
+      else
+        response = "ERR bad format\n";
+    }
+    else if(msg.substr(0, 7) == "SUBMIT ")
+    {
+      // Parse: SUBMIT <type> "<desc>" [dep=N] [pri=N] -- <args...>
+      Job job;
+      job.id = next_id_++;
+      job.state = JobState::Queued;
+      job.created_at = std::chrono::system_clock::now();
+
+      auto rest = msg.substr(7);
+      auto sp = rest.find(' ');
+      job.type = job_type_from_string(rest.substr(0, sp));
+      rest = rest.substr(sp + 1);
+
+      // Extract description
+      if(rest.front() == '"')
+      {
+        auto end = rest.find('"', 1);
+        job.description = rest.substr(1, end - 1);
+        rest = rest.substr(end + 2);
+      }
+
+      // Parse options until --
+      while(!rest.empty() && rest.substr(0, 2) != "--")
+      {
+        if(rest.substr(0, 4) == "dep=")
+        {
+          auto ep = rest.find(' ');
+          job.depends_on = std::stoull(rest.substr(4, ep - 4));
+          rest = rest.substr(ep + 1);
+        }
+        else if(rest.substr(0, 4) == "pri=")
+        {
+          auto ep = rest.find(' ');
+          job.priority = std::stoi(rest.substr(4, ep - 4));
+          rest = rest.substr(ep + 1);
+        }
+        else
+        {
+          auto ep = rest.find(' ');
+          rest = (ep == std::string::npos) ? "" : rest.substr(ep + 1);
+        }
+      }
+
+      // Parse args after --
+      if(rest.size() > 3)
+      {
+        rest = rest.substr(3); // skip "-- "
+        while(!rest.empty())
+        {
+          if(rest.front() == '"')
+          {
+            auto end = rest.find('"', 1);
+            job.args.push_back(rest.substr(1, end - 1));
+            rest = (end + 2 < rest.size()) ? rest.substr(end + 2) : "";
+          }
+          else
+          {
+            auto sp2 = rest.find(' ');
+            job.args.push_back(rest.substr(0, sp2));
+            rest = (sp2 == std::string::npos) ? "" : rest.substr(sp2 + 1);
+          }
+        }
+      }
+
+      jobs_.push_back(job);
+      save_jobs();
+      response = "OK " + std::to_string(job.id) + "\n";
+    }
+    else
+    {
+      response = "ERR unknown command\n";
+    }
+
+    // Send response
+    DWORD written = 0;
+    WriteFile(pipe, response.c_str(), static_cast<DWORD>(response.size()), &written, nullptr);
+    FlushFileBuffers(pipe);
+    DisconnectNamedPipe(pipe);
+    CloseHandle(pipe);
+
+    // Process pending jobs
+    process_next();
+  }
+
+  return 0;
+}
+
 #endif
 
 } // namespace imfwizard

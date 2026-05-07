@@ -66,7 +66,13 @@ add_library(imfwizard_core STATIC
     src/watermark.cpp
     src/aspera.cpp
     src/uuid.cpp
-    src/job_queue.cpp)
+    src/job_queue.cpp
+    src/preview.cpp
+    src/prores.cpp
+    src/burnin.cpp
+    src/dcp_convert.cpp
+    src/batch_deliver.cpp
+    src/analytics.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include

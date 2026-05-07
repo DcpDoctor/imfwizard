@@ -23,8 +23,10 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 ### Encoding & Transcoding
 - **Image encoding pipeline** — DPX, TIFF, EXR, PNG, BMP, JPEG → JPEG 2000 (via grok or OpenJPEG)
 - **ProRes / DNxHR / H.264 / H.265 transcoding** — video files → image sequence → J2K (via ffmpeg)
+- **ProRes IMF packaging** — create App#2E IMPs directly from ProRes .mov files
 - **ACES (App#5) colour management** — ACES transforms during encode
 - **Scale / crop / letterbox** options for resolution adaptation
+- **Subtitle burn-in** — permanently render SRT/TTML/SCC into video frames (for festivals)
 
 ### HDR & Advanced
 - **Dolby Vision 4.0** RPU metadata injection (via dovi_tool)
@@ -37,15 +39,19 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **Photon validation** — validate output IMPs using Netflix Photon
 - **Frame-level QC** — per-frame bitrate analysis with over/under-budget detection
 - **VMAF / PSNR / SSIM** quality metrics (via ffmpeg libvmaf)
+- **Bitrate analytics** — per-second throughput, histogram, standard deviation (JSON output for dashboards)
 - **QC HTML report** generation
 
 ### Workflow & Automation
 - **Delivery presets** — Netflix, Disney+, Amazon, Apple TV+, Cinema 2K/4K, Broadcast, Archival
-- **Job queue daemon** — background processing with Unix socket IPC
+- **Batch delivery** — create IMPs for multiple platforms in a single pass
+- **IMF-to-DCP conversion** — repackage IMF as Digital Cinema Package for theatrical playback
+- **Job queue daemon** — background processing with Unix socket / Windows named pipe IPC
 - **Watch folder** — auto-IMP creation when files appear
 - **EDL/AAF conform** — import CMX3600 edit decisions to auto-build CPL timelines
 - **S3 cloud upload** — push completed IMPs to AWS S3
-- **Partial restore** — extract tracks from existing IMPs back to raw files
+- **Aspera FASP** — high-speed delivery via IBM Aspera
+- **Partial restore** — extract tracks/segments from existing IMPs back to raw files
 
 ### Desktop GUI (Tauri 2)
 - **Dark theme** by default with optional light mode toggle
@@ -56,6 +62,10 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **IMP metadata editor** — edit CPL annotations, content versioning, locale info
 - **Delivery preset selector** — one-click configuration for major platforms
 - **Preview player** — J2K frame-by-frame playback with waveform display
+- **Bitrate analytics dashboard** — per-second charts, histogram, statistics
+- **Subtitle burn-in** — GUI for hardcoding subs into video
+- **Batch delivery panel** — deliver to multiple platforms with checkboxes
+- **IMF-to-DCP converter** — one-click conversion for cinema delivery
 - **Job queue manager** — submit, monitor, cancel background jobs
 - **Progress notifications** — system notifications when jobs complete
 - **Recent projects** — quick access to previously created IMPs
@@ -206,6 +216,65 @@ imfwizard create \
   --video /path/to/dpx_frames/ \
   --audio /path/to/audio.wav \
   --output /path/to/output/
+```
+
+### Batch delivery to multiple platforms
+
+```bash
+imfwizard deliver \
+  --video /path/to/j2k_frames/ \
+  --audio /path/to/audio.wav \
+  --title "My Feature" \
+  --output /path/to/deliveries/ \
+  --targets netflix disney amazon apple
+```
+
+### Create IMP from ProRes
+
+```bash
+imfwizard prores \
+  -i /path/to/master.mov \
+  -o /path/to/output_imp/ \
+  -t "ProRes Master"
+```
+
+### Burn subtitles into video
+
+```bash
+imfwizard burn-in \
+  -i /path/to/video.mp4 \
+  -s /path/to/subs.srt \
+  -o /path/to/output_burned.mp4 \
+  --font-size 56
+```
+
+### Convert IMF to DCP
+
+```bash
+imfwizard to-dcp \
+  -i /path/to/imp/ \
+  -o /path/to/dcp_output/ \
+  -t "Cinema Release"
+```
+
+### Bitrate analytics
+
+```bash
+# Human-readable summary
+imfwizard analytics -d /path/to/j2k_frames/
+
+# JSON output for dashboards
+imfwizard analytics -d /path/to/j2k_frames/ --json -o report.json
+```
+
+### Generate preview thumbnails
+
+```bash
+# Single frame
+imfwizard preview -d /path/to/j2k/ -o /tmp/thumbs/ -f 42
+
+# Thumbnail strip (10 evenly spaced frames)
+imfwizard preview -d /path/to/j2k/ -o /tmp/thumbs/ --strip
 ```
 
 ## Architecture

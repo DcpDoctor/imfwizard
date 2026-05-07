@@ -17,6 +17,12 @@
 #include "imfwizard/aspera.h"
 #include "imfwizard/profiles.h"
 #include "imfwizard/job_queue.h"
+#include "imfwizard/preview.h"
+#include "imfwizard/prores.h"
+#include "imfwizard/burnin.h"
+#include "imfwizard/dcp_convert.h"
+#include "imfwizard/batch_deliver.h"
+#include "imfwizard/analytics.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <cinttypes>
@@ -262,6 +268,75 @@ int main(int argc, char* argv[])
 
   // === DAEMON subcommand ===
   auto* daemon_cmd = app.add_subcommand("daemon", "Run the job queue daemon");
+
+  // === PREVIEW subcommand ===
+  auto* preview_cmd = app.add_subcommand("preview", "Generate preview thumbnails from J2K");
+  std::string prev_dir, prev_output;
+  uint32_t prev_frame = 0, prev_width = 320, prev_count = 10;
+  bool prev_strip = false;
+  preview_cmd->add_option("-d,--dir", prev_dir, "J2K frame directory or IMP")->required();
+  preview_cmd->add_option("-o,--output", prev_output, "Output directory")->required();
+  preview_cmd->add_option("-f,--frame", prev_frame, "Frame number to preview")->default_val(0);
+  preview_cmd->add_option("-w,--width", prev_width, "Thumbnail width")->default_val(320);
+  preview_cmd->add_option("-n,--count", prev_count, "Number of thumbnails for strip")->default_val(10);
+  preview_cmd->add_flag("--strip", prev_strip, "Generate thumbnail strip (multiple frames)");
+
+  // === PRORES subcommand ===
+  auto* prores_cmd = app.add_subcommand("prores", "Create IMF package from ProRes input");
+  std::string pr_input, pr_output, pr_title, pr_issuer = "IMF Wizard";
+  uint32_t pr_fps_num = 24, pr_fps_den = 1;
+  prores_cmd->add_option("-i,--input", pr_input, "ProRes .mov file")->required()->check(CLI::ExistingFile);
+  prores_cmd->add_option("-o,--output", pr_output, "Output IMP directory")->required();
+  prores_cmd->add_option("-t,--title", pr_title, "Content title")->required();
+  prores_cmd->add_option("--issuer", pr_issuer, "Issuer name")->default_val("IMF Wizard");
+  prores_cmd->add_option("--fps-num", pr_fps_num, "Frame rate numerator")->default_val(24);
+  prores_cmd->add_option("--fps-den", pr_fps_den, "Frame rate denominator")->default_val(1);
+
+  // === BURN-IN subcommand ===
+  auto* burnin_cmd = app.add_subcommand("burn-in", "Burn subtitles into video");
+  std::string bi_video, bi_subs, bi_output, bi_font = "DejaVu Sans";
+  uint16_t bi_fontsize = 48;
+  uint32_t bi_threads = 0;
+  burnin_cmd->add_option("-i,--input", bi_video, "Input video file")->required()->check(CLI::ExistingFile);
+  burnin_cmd->add_option("-s,--subtitles", bi_subs, "Subtitle file (SRT/TTML/SCC)")->required()->check(CLI::ExistingFile);
+  burnin_cmd->add_option("-o,--output", bi_output, "Output video file")->required();
+  burnin_cmd->add_option("--font", bi_font, "Font family")->default_val("DejaVu Sans");
+  burnin_cmd->add_option("--font-size", bi_fontsize, "Font size")->default_val(48);
+  burnin_cmd->add_option("--threads", bi_threads, "Threads (0=auto)")->default_val(0);
+
+  // === TO-DCP subcommand ===
+  auto* todcp_cmd = app.add_subcommand("to-dcp", "Convert IMF package to DCP");
+  std::string dcp_imp, dcp_output, dcp_title, dcp_kind = "feature";
+  todcp_cmd->add_option("-i,--imp", dcp_imp, "Input IMP directory")->required()->check(CLI::ExistingDirectory);
+  todcp_cmd->add_option("-o,--output", dcp_output, "Output DCP directory")->required();
+  todcp_cmd->add_option("-t,--title", dcp_title, "DCP content title");
+  todcp_cmd->add_option("-k,--kind", dcp_kind, "Content kind")->default_val("feature");
+
+  // === DELIVER subcommand ===
+  auto* deliver_cmd = app.add_subcommand("deliver", "Batch deliver to multiple platforms");
+  std::string del_video, del_audio, del_subtitle, del_title, del_output_base;
+  std::vector<std::string> del_targets;
+  uint32_t del_fps_num = 24, del_fps_den = 1, del_threads = 0;
+  deliver_cmd->add_option("-v,--video", del_video, "Video directory or file")->required();
+  deliver_cmd->add_option("-a,--audio", del_audio, "Audio file");
+  deliver_cmd->add_option("-s,--subtitle", del_subtitle, "Subtitle file");
+  deliver_cmd->add_option("-t,--title", del_title, "Content title")->required();
+  deliver_cmd->add_option("-o,--output", del_output_base, "Output base directory")->required();
+  deliver_cmd->add_option("--targets", del_targets, "Delivery targets (netflix,disney,amazon,apple,cinema,broadcast,archival)")->required();
+  deliver_cmd->add_option("--fps-num", del_fps_num, "Frame rate numerator")->default_val(24);
+  deliver_cmd->add_option("--fps-den", del_fps_den, "Frame rate denominator")->default_val(1);
+  deliver_cmd->add_option("--threads", del_threads, "Threads (0=auto)")->default_val(0);
+
+  // === ANALYTICS subcommand ===
+  auto* analytics_cmd = app.add_subcommand("analytics", "Generate bitrate analytics for J2K stream");
+  std::string an_dir, an_output;
+  uint32_t an_fps_num = 24, an_fps_den = 1;
+  bool an_json = false;
+  analytics_cmd->add_option("-d,--dir", an_dir, "J2K frame directory")->required();
+  analytics_cmd->add_option("-o,--output", an_output, "Output JSON file (optional)");
+  analytics_cmd->add_option("--fps-num", an_fps_num, "Frame rate numerator")->default_val(24);
+  analytics_cmd->add_option("--fps-den", an_fps_den, "Frame rate denominator")->default_val(1);
+  analytics_cmd->add_flag("--json", an_json, "Output as JSON");
 
   CLI11_PARSE(app, argc, argv);
 
@@ -804,6 +879,177 @@ int main(int argc, char* argv[])
       }
       return 0;
     }
+  }
+
+  if(preview_cmd->parsed())
+  {
+    if(prev_strip)
+    {
+      imfwizard::ThumbnailStripOptions opts;
+      opts.source_dir = prev_dir;
+      opts.output_dir = prev_output;
+      opts.count = prev_count;
+      opts.width = prev_width;
+      auto r = imfwizard::generate_thumbnail_strip(opts);
+      if(!r.success)
+      {
+        spdlog::error("{}", r.error);
+        return 1;
+      }
+      std::cout << "Generated " << r.thumbnails.size() << " thumbnails from "
+                << r.total_frames << " frames\n";
+    }
+    else
+    {
+      imfwizard::PreviewOptions opts;
+      opts.j2k_dir = prev_dir;
+      opts.frame = prev_frame;
+      opts.thumbnail_width = prev_width;
+      opts.output_dir = prev_output;
+      auto r = imfwizard::decode_preview_frame(opts);
+      if(!r.success)
+      {
+        spdlog::error("{}", r.error);
+        return 1;
+      }
+      std::cout << "Preview: " << r.frame.thumbnail_path << "\n";
+    }
+    return 0;
+  }
+
+  if(prores_cmd->parsed())
+  {
+    imfwizard::ProResImpOptions opts;
+    opts.input_file = pr_input;
+    opts.output_dir = pr_output;
+    opts.title = pr_title;
+    opts.issuer = pr_issuer;
+    opts.fps_num = pr_fps_num;
+    opts.fps_den = pr_fps_den;
+
+    auto r = imfwizard::create_prores_imp(opts);
+    if(!r.success)
+    {
+      spdlog::error("{}", r.error);
+      return 1;
+    }
+    std::cout << "ProRes IMP created: " << r.output_dir << "\n"
+              << "  CPL: urn:uuid:" << r.cpl_uuid << "\n"
+              << "  Frames: " << r.frame_count << "\n";
+    return 0;
+  }
+
+  if(burnin_cmd->parsed())
+  {
+    imfwizard::BurnInOptions opts;
+    opts.video_input = bi_video;
+    opts.subtitle_file = bi_subs;
+    opts.output = bi_output;
+    opts.font = bi_font;
+    opts.font_size = bi_fontsize;
+    opts.threads = bi_threads;
+
+    auto r = imfwizard::burn_in_subtitles(opts);
+    if(!r.success)
+    {
+      spdlog::error("{}", r.error);
+      return 1;
+    }
+    std::cout << "Burned " << r.frame_count << " frames -> " << r.output_file << "\n";
+    return 0;
+  }
+
+  if(todcp_cmd->parsed())
+  {
+    imfwizard::DcpConvertOptions opts;
+    opts.imp_dir = dcp_imp;
+    opts.output_dir = dcp_output;
+    opts.content_title = dcp_title;
+    opts.content_kind = dcp_kind;
+
+    auto r = imfwizard::convert_imp_to_dcp(opts);
+    if(!r.success)
+    {
+      spdlog::error("{}", r.error);
+      return 1;
+    }
+    std::cout << "DCP created: " << r.output_dir << "\n"
+              << "  CPL: urn:uuid:" << r.cpl_uuid << "\n"
+              << "  Reels: " << r.reel_count << "\n"
+              << "  Size: " << (r.total_size / (1024 * 1024)) << " MB\n";
+    return 0;
+  }
+
+  if(deliver_cmd->parsed())
+  {
+    imfwizard::BatchDeliverOptions opts;
+    opts.video_dir = del_video;
+    opts.audio_file = del_audio;
+    opts.subtitle_file = del_subtitle;
+    opts.title = del_title;
+    opts.fps_num = del_fps_num;
+    opts.fps_den = del_fps_den;
+    opts.threads = del_threads;
+
+    for(const auto& t : del_targets)
+    {
+      imfwizard::DeliveryTarget dt;
+      dt.profile = t;
+      dt.output_dir = fs::path(del_output_base) / t;
+      opts.targets.push_back(dt);
+    }
+
+    auto r = imfwizard::batch_deliver(opts);
+    std::cout << "Batch delivery: " << r.succeeded << " succeeded, " << r.failed << " failed\n";
+    for(const auto& tr : r.results)
+    {
+      std::cout << "  [" << (tr.success ? "OK" : "FAIL") << "] " << tr.profile;
+      if(!tr.error.empty())
+        std::cout << " -- " << tr.error;
+      std::cout << "\n";
+    }
+    return r.all_success ? 0 : 1;
+  }
+
+  if(analytics_cmd->parsed())
+  {
+    imfwizard::AnalyticsOptions opts;
+    opts.source = an_dir;
+    opts.fps_num = an_fps_num;
+    opts.fps_den = an_fps_den;
+
+    auto r = imfwizard::compute_analytics(opts);
+    if(!r.success)
+    {
+      spdlog::error("{}", r.error);
+      return 1;
+    }
+
+    if(an_json || !an_output.empty())
+    {
+      auto json = imfwizard::analytics_to_json(r);
+      if(!an_output.empty())
+      {
+        std::ofstream f(an_output);
+        f << json;
+        std::cout << "Analytics written to " << an_output << "\n";
+      }
+      else
+      {
+        std::cout << json;
+      }
+    }
+    else
+    {
+      std::cout << "Frames: " << r.total_frames << "\n"
+                << "Duration: " << r.duration_seconds << "s\n"
+                << "Total size: " << (r.total_bytes / (1024 * 1024)) << " MB\n"
+                << "Avg bitrate: " << r.avg_bitrate_mbps << " Mbps\n"
+                << "Peak bitrate: " << r.peak_bitrate_mbps << " Mbps\n"
+                << "Min bitrate: " << r.min_bitrate_mbps << " Mbps\n"
+                << "Std dev: " << r.stddev_bitrate_mbps << " Mbps\n";
+    }
+    return 0;
   }
 
   return 0;
