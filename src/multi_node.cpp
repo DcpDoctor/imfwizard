@@ -13,6 +13,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32.lib")
+typedef int socklen_t;
 #else
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -262,7 +263,7 @@ int run_render_worker(uint16_t port, uint32_t /*max_threads*/)
       continue;
 
     char buf[4096]{};
-    ssize_t n = recv(client_fd, buf, sizeof(buf) - 1, 0);
+    auto n = recv(client_fd, buf, sizeof(buf) - 1, 0);
     if (n <= 0)
     {
 #ifdef _WIN32

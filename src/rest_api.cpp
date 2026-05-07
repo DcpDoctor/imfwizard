@@ -18,9 +18,12 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #else
-#include <windows.h>
+#define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
 #pragma comment(lib, "ws2_32.lib")
+typedef int socklen_t;
 #endif
 
 namespace fs = std::filesystem;
