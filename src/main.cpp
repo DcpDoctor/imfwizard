@@ -645,6 +645,32 @@ int main(int argc, char* argv[])
   tcdrift_cmd->add_option("--expected,-e", tcdrift_expected, "Expected start timecode");
   tcdrift_cmd->add_option("--fps", tcdrift_fps, "Expected frame rate")->default_val(24.0);
 
+  // === dcpdoctor wrapper subcommands (delegate to dcpdoctor CLI) ===
+  auto* validate_cmd = app.add_subcommand("validate", "Validate IMP (delegates to dcpdoctor)");
+  validate_cmd->allow_extras();
+  auto* schema_val_cmd = app.add_subcommand("schema-validate", "XML schema validation (delegates to dcpdoctor)");
+  schema_val_cmd->allow_extras();
+  auto* compliance_cmd = app.add_subcommand("compliance", "Platform compliance checks (delegates to dcpdoctor)");
+  compliance_cmd->allow_extras();
+  auto* frame_qc_cmd = app.add_subcommand("frame-qc", "Frame-level QC analysis (delegates to dcpdoctor)");
+  frame_qc_cmd->allow_extras();
+  auto* qc_report_cmd = app.add_subcommand("qc-report", "Generate QC report (delegates to dcpdoctor)");
+  qc_report_cmd->allow_extras();
+  auto* loudness_cmd = app.add_subcommand("loudness", "Loudness measurement (delegates to dcpdoctor)");
+  loudness_cmd->allow_extras();
+  auto* avsync_cmd = app.add_subcommand("av-sync", "AV sync detection (delegates to dcpdoctor)");
+  avsync_cmd->allow_extras();
+  auto* hdrval_cmd = app.add_subcommand("hdr-validate", "HDR validation (delegates to dcpdoctor)");
+  hdrval_cmd->allow_extras();
+  auto* fcomp_cmd = app.add_subcommand("frame-compare", "Frame comparison (delegates to dcpdoctor)");
+  fcomp_cmd->allow_extras();
+  auto* cksum_cmd = app.add_subcommand("checksum-verify", "Checksum verification (delegates to dcpdoctor)");
+  cksum_cmd->allow_extras();
+  auto* mxfext_cmd = app.add_subcommand("mxf-extract", "MXF extraction (delegates to dcpdoctor)");
+  mxfext_cmd->allow_extras();
+  auto* autoqc_cmd = app.add_subcommand("auto-qc", "Automated QC checks (delegates to dcpdoctor)");
+  autoqc_cmd->allow_extras();
+
   CLI11_PARSE(app, argc, argv);
 
   if(verbose)
@@ -655,6 +681,48 @@ int main(int argc, char* argv[])
   {
     spdlog::set_level(spdlog::level::info);
   }
+
+  // === dcpdoctor wrapper handlers — delegate to dcpdoctor CLI ===
+  auto delegate_to_dcpdoctor = [](const std::string& subcmd, CLI::App* cmd) -> int {
+    std::string args;
+    for(auto& extra : cmd->remaining())
+    {
+      args += " ";
+      // Quote args that contain spaces
+      if(extra.find(' ') != std::string::npos)
+        args += "\"" + extra + "\"";
+      else
+        args += extra;
+    }
+    std::string full_cmd = "dcpdoctor " + subcmd + args;
+    spdlog::debug("Delegating to: {}", full_cmd);
+    return system(full_cmd.c_str()) == 0 ? 0 : 1;
+  };
+
+  if(validate_cmd->parsed())
+    return delegate_to_dcpdoctor("validate-imp", validate_cmd);
+  if(schema_val_cmd->parsed())
+    return delegate_to_dcpdoctor("schema-validate", schema_val_cmd);
+  if(compliance_cmd->parsed())
+    return delegate_to_dcpdoctor("imf-compliance", compliance_cmd);
+  if(frame_qc_cmd->parsed())
+    return delegate_to_dcpdoctor("frame-qc", frame_qc_cmd);
+  if(qc_report_cmd->parsed())
+    return delegate_to_dcpdoctor("qc-report", qc_report_cmd);
+  if(loudness_cmd->parsed())
+    return delegate_to_dcpdoctor("loudness", loudness_cmd);
+  if(avsync_cmd->parsed())
+    return delegate_to_dcpdoctor("av-sync", avsync_cmd);
+  if(hdrval_cmd->parsed())
+    return delegate_to_dcpdoctor("hdr-validate", hdrval_cmd);
+  if(fcomp_cmd->parsed())
+    return delegate_to_dcpdoctor("frame-compare", fcomp_cmd);
+  if(cksum_cmd->parsed())
+    return delegate_to_dcpdoctor("checksum-verify", cksum_cmd);
+  if(mxfext_cmd->parsed())
+    return delegate_to_dcpdoctor("mxf-extract", mxfext_cmd);
+  if(autoqc_cmd->parsed())
+    return delegate_to_dcpdoctor("auto-qc", autoqc_cmd);
 
   if(create_cmd->parsed())
   {
