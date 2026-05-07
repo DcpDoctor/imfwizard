@@ -35,10 +35,12 @@
       <button data-page="validate-page">Validate</button>
       <button data-page="preview-page">Preview</button>
       <button data-page="analytics-page">Analytics</button>
+      <button data-page="assets-page">Assets</button>
       <button data-page="deliver-page">Deliver</button>
       <button data-page="todcp-page">To DCP</button>
       <button data-page="jobs-page">Jobs</button>
       <span class="nav-spacer"></span>
+      <button id="shortcuts-btn" title="Keyboard shortcuts">⌨️</button>
       <button id="theme-toggle" title="Toggle dark/light theme">🌙</button>
     </nav>
 
@@ -522,7 +524,66 @@
           <pre id="dcp-log" style="margin-top:1rem; display:none;"></pre>
         </section>
       </section>
+
+      <!-- Asset Browser -->
+      <section class="page" id="assets-page">
+        <section class="panel">
+          <h2>Asset Browser</h2>
+          <p class="field-hint">Browse and inspect MXF track files in an IMP with thumbnails and metadata.</p>
+          <div class="field">
+            <label>IMP Directory</label>
+            <button type="button" id="asset-select-dir">Browse...</button>
+            <span id="asset-dir-path" class="path-display">No directory selected</span>
+          </div>
+          <button class="btn-primary" id="asset-scan">Scan Assets</button>
+          <div id="asset-grid" class="asset-grid" style="display:none;"></div>
+          <div id="asset-detail" class="asset-detail" style="display:none;">
+            <h3 id="asset-detail-name"></h3>
+            <div id="asset-detail-info"></div>
+          </div>
+        </section>
+      </section>
     </main>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcuts-modal" class="modal" hidden>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Keyboard Shortcuts</h2>
+          <button id="shortcuts-close" class="modal-close">&times;</button>
+        </div>
+        <div class="shortcuts-grid">
+          <div class="shortcut-group">
+            <h3>Navigation</h3>
+            <div class="shortcut-row"><kbd>1</kbd>-<kbd>9</kbd> <span>Switch tabs</span></div>
+            <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>N</kbd> <span>New IMP</span></div>
+            <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>O</kbd> <span>Open IMP</span></div>
+            <div class="shortcut-row"><kbd>?</kbd> <span>Show shortcuts</span></div>
+          </div>
+          <div class="shortcut-group">
+            <h3>Preview</h3>
+            <div class="shortcut-row"><kbd>Space</kbd> <span>Play/Pause</span></div>
+            <div class="shortcut-row"><kbd>←</kbd> <span>Previous frame</span></div>
+            <div class="shortcut-row"><kbd>→</kbd> <span>Next frame</span></div>
+            <div class="shortcut-row"><kbd>Home</kbd> <span>First frame</span></div>
+            <div class="shortcut-row"><kbd>End</kbd> <span>Last frame</span></div>
+          </div>
+          <div class="shortcut-group">
+            <h3>Timeline</h3>
+            <div class="shortcut-row"><kbd>+</kbd> <span>Zoom in</span></div>
+            <div class="shortcut-row"><kbd>-</kbd> <span>Zoom out</span></div>
+            <div class="shortcut-row"><kbd>Del</kbd> <span>Remove segment</span></div>
+            <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Z</kbd> <span>Undo</span></div>
+          </div>
+          <div class="shortcut-group">
+            <h3>Jobs</h3>
+            <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>J</kbd> <span>View jobs</span></div>
+            <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> <span>Run current</span></div>
+            <div class="shortcut-row"><kbd>Escape</kbd> <span>Close modal</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

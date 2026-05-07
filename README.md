@@ -79,10 +79,24 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **Aspera FASP** — high-speed delivery via IBM Aspera
 - **Partial restore** — extract tracks/segments from existing IMPs back to raw files
 
+### Comparison & Analysis
+- **IMF package diff** — compare two IMPs and show track/segment changes
+- **MXF playback/probe** — inspect MXF files, extract frames, generate thumbnails (via GStreamer/ffmpeg)
+- **OTIOZ import** — import OpenTimelineIO zip bundles with timeline-to-CPL conversion
+
+### Distributed & Advanced
+- **Multi-node render** — distribute J2K encoding across multiple machines (coordinator + worker mode)
+- **KDM generation** — generate SMPTE 430-1 Key Delivery Messages for encrypted DCP
+- **Dolby Vision Profile 8.1** — HDR10-compatible single-layer DV (MEL/FEL mapping, profile 4→8.1 conversion)
+- **Prometheus metrics** — `/metrics` endpoint on REST API for monitoring (jobs, frames, bytes, uptime)
+
 ### Desktop GUI (Tauri 2)
 - **Dark theme** by default with optional light mode toggle
 - **Drag-and-drop** file import (WAV, TTML, image sequences)
 - **Timeline editor** — visual segment arrangement for multi-track compositions
+- **Asset browser** — browse IMP track files with thumbnails and metadata inspection
+- **Keyboard shortcuts** — full shortcut overlay (`?` key), tab navigation (1-9), preview controls
+- **Progress bars** — real-time progress tracking for encode/wrap jobs
 - **Supplemental IMP wizard** — guided workflow for versioned supplements
 - **Loudness metering panel** — EBU R128 / ATSC A/85 compliance badges
 - **IMP metadata editor** — edit CPL annotations, content versioning, locale info
@@ -95,6 +109,12 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **Job queue manager** — submit, monitor, cancel background jobs
 - **Progress notifications** — system notifications when jobs complete
 - **Recent projects** — quick access to previously created IMPs
+
+### Packaging & Deployment
+- **Docker image** — headless batch processing (`docker run imfwizard create ...`)
+- **Flatpak** — Linux desktop distribution via Flathub
+- **macOS .dmg** — universal binary with code signing and notarization
+- REST API mode with Prometheus-compatible `/metrics` endpoint
 
 ## Building
 

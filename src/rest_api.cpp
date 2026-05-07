@@ -3,6 +3,8 @@
 #include <spdlog/spdlog.h>
 
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -251,6 +253,86 @@ RestApiResult start_rest_api(const RestApiOptions& opts)
 
   result.success = true;
   return result;
+}
+
+// === Prometheus Metrics ===
+
+namespace
+{
+// Global metrics state (thread-safe via atomic)
+static std::atomic<uint64_t> g_jobs_total{0};
+static std::atomic<uint64_t> g_jobs_completed{0};
+static std::atomic<uint64_t> g_jobs_failed{0};
+static std::atomic<uint64_t> g_jobs_active{0};
+static std::atomic<uint64_t> g_jobs_queued{0};
+static std::atomic<uint64_t> g_frames_encoded{0};
+static std::atomic<uint64_t> g_bytes_written{0};
+static std::atomic<uint64_t> g_api_requests{0};
+static std::atomic<uint64_t> g_api_errors{0};
+static auto g_start_time = std::chrono::steady_clock::now();
+} // anonymous namespace
+
+MetricsSnapshot get_metrics()
+{
+  MetricsSnapshot m;
+  m.jobs_total = g_jobs_total.load();
+  m.jobs_completed = g_jobs_completed.load();
+  m.jobs_failed = g_jobs_failed.load();
+  m.jobs_active = g_jobs_active.load();
+  m.jobs_queued = g_jobs_queued.load();
+  m.frames_encoded_total = g_frames_encoded.load();
+  m.bytes_written_total = g_bytes_written.load();
+  m.api_requests_total = g_api_requests.load();
+  m.api_errors_total = g_api_errors.load();
+  m.uptime_seconds = std::chrono::duration<double>(
+      std::chrono::steady_clock::now() - g_start_time).count();
+  return m;
+}
+
+std::string format_prometheus_metrics(const MetricsSnapshot& m)
+{
+  std::ostringstream out;
+  out << "# HELP imfwizard_jobs_total Total jobs submitted\n";
+  out << "# TYPE imfwizard_jobs_total counter\n";
+  out << "imfwizard_jobs_total " << m.jobs_total << "\n\n";
+
+  out << "# HELP imfwizard_jobs_completed_total Jobs completed successfully\n";
+  out << "# TYPE imfwizard_jobs_completed_total counter\n";
+  out << "imfwizard_jobs_completed_total " << m.jobs_completed << "\n\n";
+
+  out << "# HELP imfwizard_jobs_failed_total Jobs that failed\n";
+  out << "# TYPE imfwizard_jobs_failed_total counter\n";
+  out << "imfwizard_jobs_failed_total " << m.jobs_failed << "\n\n";
+
+  out << "# HELP imfwizard_jobs_active Currently running jobs\n";
+  out << "# TYPE imfwizard_jobs_active gauge\n";
+  out << "imfwizard_jobs_active " << m.jobs_active << "\n\n";
+
+  out << "# HELP imfwizard_jobs_queued Jobs waiting in queue\n";
+  out << "# TYPE imfwizard_jobs_queued gauge\n";
+  out << "imfwizard_jobs_queued " << m.jobs_queued << "\n\n";
+
+  out << "# HELP imfwizard_frames_encoded_total Total frames encoded\n";
+  out << "# TYPE imfwizard_frames_encoded_total counter\n";
+  out << "imfwizard_frames_encoded_total " << m.frames_encoded_total << "\n\n";
+
+  out << "# HELP imfwizard_bytes_written_total Total bytes written\n";
+  out << "# TYPE imfwizard_bytes_written_total counter\n";
+  out << "imfwizard_bytes_written_total " << m.bytes_written_total << "\n\n";
+
+  out << "# HELP imfwizard_api_requests_total Total API requests\n";
+  out << "# TYPE imfwizard_api_requests_total counter\n";
+  out << "imfwizard_api_requests_total " << m.api_requests_total << "\n\n";
+
+  out << "# HELP imfwizard_api_errors_total Total API errors\n";
+  out << "# TYPE imfwizard_api_errors_total counter\n";
+  out << "imfwizard_api_errors_total " << m.api_errors_total << "\n\n";
+
+  out << "# HELP imfwizard_uptime_seconds Server uptime\n";
+  out << "# TYPE imfwizard_uptime_seconds gauge\n";
+  out << "imfwizard_uptime_seconds " << std::fixed << m.uptime_seconds << "\n";
+
+  return out.str();
 }
 
 } // namespace imfwizard

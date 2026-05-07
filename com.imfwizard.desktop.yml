@@ -1,0 +1,60 @@
+app-id: com.imfwizard.desktop
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: imfwizard-gui
+
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=dri
+  - --filesystem=home
+  - --filesystem=/tmp
+  - --share=network
+
+modules:
+  - name: openjpeg
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_TESTING=OFF
+    sources:
+      - type: archive
+        url: https://github.com/uclouvain/openjpeg/archive/refs/tags/v2.5.2.tar.gz
+        sha256: FIXME
+
+  - name: asdcplib
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+    sources:
+      - type: archive
+        url: https://github.com/cinecert/asdcplib/archive/refs/tags/rel_2_13_3.tar.gz
+        sha256: FIXME
+
+  - name: imfwizard
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_TESTING=OFF
+    sources:
+      - type: dir
+        path: .
+    post-install:
+      - install -Dm644 docs/com.imfwizard.desktop.desktop /app/share/applications/com.imfwizard.desktop.desktop
+      - install -Dm644 docs/com.imfwizard.desktop.metainfo.xml /app/share/metainfo/com.imfwizard.desktop.metainfo.xml
+      - install -Dm644 gui/src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/com.imfwizard.desktop.png
+
+  - name: imfwizard-gui
+    buildsystem: simple
+    build-commands:
+      - cd gui/src-tauri && cargo build --release
+      - install -Dm755 gui/src-tauri/target/release/imfwizard-gui /app/bin/imfwizard-gui
+    sources:
+      - type: dir
+        path: .
+    build-options:
+      env:
+        CARGO_HOME: /run/build/imfwizard-gui/.cargo

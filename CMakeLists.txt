@@ -95,7 +95,12 @@ add_library(imfwizard_core STATIC
     src/partial_version.cpp
     src/slate.cpp
     src/subtitle_retime.cpp
-    src/sdi_output.cpp)
+    src/sdi_output.cpp
+    src/imp_diff.cpp
+    src/otioz_import.cpp
+    src/multi_node.cpp
+    src/kdm_gen.cpp
+    src/mxf_playback.cpp)
 
 target_include_directories(imfwizard_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include

@@ -756,3 +756,152 @@ document.getElementById("dcp-convert")?.addEventListener("click", async () => {
   log.textContent = r.code === 0 ? r.stdout : "Error: " + r.stderr;
   if (r.code === 0) notify("DCP conversion complete");
 });
+
+// ========== KEYBOARD SHORTCUTS ==========
+const shortcutsModal = document.getElementById("shortcuts-modal");
+document.getElementById("shortcuts-btn")?.addEventListener("click", () => {
+  shortcutsModal.hidden = !shortcutsModal.hidden;
+});
+document.getElementById("shortcuts-close")?.addEventListener("click", () => {
+  shortcutsModal.hidden = true;
+});
+
+document.addEventListener("keydown", (e) => {
+  // Close modal on Escape
+  if (e.key === "Escape" && !shortcutsModal.hidden) {
+    shortcutsModal.hidden = true;
+    return;
+  }
+
+  // Don't trigger shortcuts when typing in inputs
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+
+  // ? = show shortcuts
+  if (e.key === "?") {
+    shortcutsModal.hidden = false;
+    return;
+  }
+
+  // Number keys = switch tabs
+  const tabs = document.querySelectorAll(".nav-tabs button[data-page]");
+  const num = parseInt(e.key);
+  if (num >= 1 && num <= tabs.length) {
+    tabs[num - 1].click();
+    return;
+  }
+
+  // Ctrl+N = New IMP (switch to create tab)
+  if (e.ctrlKey && e.key === "n") {
+    e.preventDefault();
+    document.querySelector('[data-page="create-page"]').click();
+  }
+
+  // Ctrl+O = Open IMP (switch to validate tab + browse)
+  if (e.ctrlKey && e.key === "o") {
+    e.preventDefault();
+    document.querySelector('[data-page="validate-page"]').click();
+    document.getElementById("val-select")?.click();
+  }
+
+  // Ctrl+J = View jobs
+  if (e.ctrlKey && e.key === "j") {
+    e.preventDefault();
+    document.querySelector('[data-page="jobs-page"]').click();
+  }
+});
+
+// ========== ASSET BROWSER ==========
+let assetDir = "";
+
+document.getElementById("asset-select-dir")?.addEventListener("click", async () => {
+  const d = await open({ directory: true, title: "Select IMP Directory" });
+  if (d) { assetDir = d; document.getElementById("asset-dir-path").textContent = d; }
+});
+
+document.getElementById("asset-scan")?.addEventListener("click", async () => {
+  if (!assetDir) { alert("Select an IMP directory"); return; }
+
+  const grid = document.getElementById("asset-grid");
+  grid.style.display = "grid";
+  grid.innerHTML = '<div class="asset-card-meta">Scanning...</div>';
+
+  // Use imfwizard info to get asset listing
+  const r = await Command.sidecar("imfwizard", ["info", assetDir]).execute();
+  if (r.code !== 0) {
+    grid.innerHTML = '<div class="asset-card-meta">Error: ' + r.stderr + '</div>';
+    return;
+  }
+
+  // Parse track lines from info output
+  const lines = r.stdout.split("\n");
+  const assets = [];
+  for (const line of lines) {
+    const match = line.match(/Track:\s+(\S+)\s+\((\w+)\)\s+(.+)/);
+    if (match) {
+      assets.push({ id: match[1], type: match[2], detail: match[3] });
+    }
+    // Also match MXF file lines
+    const mxfMatch = line.match(/^\s*(\S+\.mxf)/i);
+    if (mxfMatch && !assets.find(a => a.id === mxfMatch[1])) {
+      assets.push({ id: mxfMatch[1], type: "mxf", detail: mxfMatch[1] });
+    }
+  }
+
+  if (assets.length === 0) {
+    grid.innerHTML = '<div class="asset-card-meta">No assets found. Make sure directory contains ASSETMAP.xml</div>';
+    return;
+  }
+
+  grid.innerHTML = assets.map((asset, i) => {
+    const icon = asset.type === "video" ? "🎬" : asset.type === "audio" ? "🔊" : "📄";
+    return `<div class="asset-card" data-index="${i}">
+      <div class="asset-thumb">${icon}</div>
+      <div class="asset-card-name">${asset.id}</div>
+      <div class="asset-card-meta">${asset.type} — ${asset.detail}</div>
+    </div>`;
+  }).join("");
+
+  // Click to show detail
+  grid.querySelectorAll(".asset-card").forEach(card => {
+    card.addEventListener("click", () => {
+      grid.querySelectorAll(".asset-card").forEach(c => c.classList.remove("selected"));
+      card.classList.add("selected");
+      const idx = parseInt(card.dataset.index);
+      const asset = assets[idx];
+      const detail = document.getElementById("asset-detail");
+      detail.style.display = "block";
+      document.getElementById("asset-detail-name").textContent = asset.id;
+      document.getElementById("asset-detail-info").textContent = `Type: ${asset.type}\n${asset.detail}`;
+    });
+  });
+});
+
+// ========== PROGRESS BAR HELPERS ==========
+function createProgressBar(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return null;
+
+  const bar = document.createElement("div");
+  bar.className = "progress-bar";
+  bar.innerHTML = '<div class="progress-bar-fill" style="width:0%"></div>';
+  const text = document.createElement("div");
+  text.className = "progress-text";
+  text.textContent = "0%";
+  container.appendChild(bar);
+  container.appendChild(text);
+
+  return {
+    update(percent, message) {
+      bar.querySelector(".progress-bar-fill").style.width = `${Math.min(100, percent)}%`;
+      text.textContent = message || `${Math.round(percent)}%`;
+    },
+    done(message) {
+      bar.querySelector(".progress-bar-fill").style.width = "100%";
+      text.textContent = message || "Complete";
+    },
+    remove() {
+      bar.remove();
+      text.remove();
+    }
+  };
+}

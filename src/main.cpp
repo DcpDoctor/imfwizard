@@ -40,6 +40,11 @@
 #include "imfwizard/slate.h"
 #include "imfwizard/subtitle_retime.h"
 #include "imfwizard/sdi_output.h"
+#include "imfwizard/imp_diff.h"
+#include "imfwizard/otioz_import.h"
+#include "imfwizard/multi_node.h"
+#include "imfwizard/kdm_gen.h"
+#include "imfwizard/mxf_playback.h"
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 #include <cinttypes>
@@ -547,6 +552,90 @@ int main(int argc, char* argv[])
   sdi_cmd->add_option("--end", sdi_end, "End frame (0=all)");
   sdi_cmd->add_flag("--loop", sdi_loop, "Loop playback");
   sdi_cmd->add_flag("--list-devices", sdi_list, "List available SDI devices");
+
+  // === IMP-DIFF subcommand ===
+  auto* diff_cmd = app.add_subcommand("imp-diff", "Compare two IMF packages and show differences");
+  std::string diff_imp_a, diff_imp_b;
+  bool diff_hashes = false, diff_json = false, diff_show_unchanged = false;
+  diff_cmd->add_option("--imp-a,-a", diff_imp_a, "First IMP directory (OV)")->required();
+  diff_cmd->add_option("--imp-b,-b", diff_imp_b, "Second IMP directory (supplemental)")->required();
+  diff_cmd->add_flag("--hashes", diff_hashes, "Include file hash comparison");
+  diff_cmd->add_flag("--json", diff_json, "Output as JSON");
+  diff_cmd->add_flag("--show-unchanged", diff_show_unchanged, "Show unchanged tracks");
+
+  // === OTIOZ-IMPORT subcommand ===
+  auto* otioz_cmd = app.add_subcommand("otioz-import", "Import OpenTimelineIO bundle (.otioz/.otio)");
+  std::string otioz_input, otioz_output, otioz_title;
+  bool otioz_generate_cpl = false, otioz_no_extract = false;
+  double otioz_fps = 24.0;
+  otioz_cmd->add_option("--input,-i", otioz_input, "OTIOZ/OTIO file path")->required();
+  otioz_cmd->add_option("--output,-o", otioz_output, "Output directory")->required();
+  otioz_cmd->add_option("--title,-t", otioz_title, "Title for generated CPL");
+  otioz_cmd->add_option("--fps", otioz_fps, "Target FPS for CPL")->default_val(24.0);
+  otioz_cmd->add_flag("--generate-cpl", otioz_generate_cpl, "Generate CPL from timeline");
+  otioz_cmd->add_flag("--no-extract", otioz_no_extract, "Don't extract media files");
+
+  // === MULTI-NODE subcommand ===
+  auto* mnode_cmd = app.add_subcommand("multi-node", "Distribute encoding across multiple render nodes");
+  std::string mnode_input, mnode_output, mnode_codec = "j2k";
+  std::vector<std::string> mnode_nodes;
+  uint32_t mnode_chunk = 100, mnode_bitrate = 250;
+  uint16_t mnode_port = 9090;
+  bool mnode_worker = false, mnode_verify = true;
+  mnode_cmd->add_option("--input,-i", mnode_input, "Source frame directory");
+  mnode_cmd->add_option("--output,-o", mnode_output, "Encoded output directory");
+  mnode_cmd->add_option("--nodes,-n", mnode_nodes, "Node addresses (host:port)");
+  mnode_cmd->add_option("--codec", mnode_codec, "Codec (j2k, prores, dnxhr)")->default_val("j2k");
+  mnode_cmd->add_option("--chunk-size", mnode_chunk, "Frames per chunk")->default_val(100);
+  mnode_cmd->add_option("--bitrate", mnode_bitrate, "Target bitrate (Mbps)")->default_val(250);
+  mnode_cmd->add_option("--port", mnode_port, "Worker/coordinator port")->default_val(9090);
+  mnode_cmd->add_flag("--worker", mnode_worker, "Run as render worker node");
+  mnode_cmd->add_flag("--no-verify", mnode_verify, "Skip verification after encode");
+
+  // === KDM subcommand ===
+  auto* kdm_cmd = app.add_subcommand("kdm", "Generate Key Delivery Messages for encrypted DCP");
+  std::string kdm_dcp, kdm_cpl, kdm_signer_key, kdm_signer_cert, kdm_output;
+  std::string kdm_from, kdm_to, kdm_title;
+  std::vector<std::string> kdm_recipients;
+  bool kdm_forensic = false, kdm_interop = false;
+  kdm_cmd->add_option("--dcp,-d", kdm_dcp, "DCP directory")->required();
+  kdm_cmd->add_option("--cpl", kdm_cpl, "CPL file (if DCP has multiple)");
+  kdm_cmd->add_option("--signer-key", kdm_signer_key, "Signer private key")->required();
+  kdm_cmd->add_option("--signer-cert", kdm_signer_cert, "Signer certificate")->required();
+  kdm_cmd->add_option("--recipients,-r", kdm_recipients, "Recipient cert files")->required();
+  kdm_cmd->add_option("--output,-o", kdm_output, "Output directory")->required();
+  kdm_cmd->add_option("--from", kdm_from, "Valid from (ISO 8601)")->required();
+  kdm_cmd->add_option("--to", kdm_to, "Valid to (ISO 8601)")->required();
+  kdm_cmd->add_option("--title,-t", kdm_title, "Content title override");
+  kdm_cmd->add_flag("--forensic-mark", kdm_forensic, "Enable forensic marking");
+  kdm_cmd->add_flag("--interop", kdm_interop, "Use Interop format (legacy)");
+
+  // === DV81 subcommand ===
+  auto* dv81_cmd = app.add_subcommand("dv81", "Inject Dolby Vision Profile 8.1 metadata (HDR10 compatible)");
+  std::string dv81_input, dv81_rpu, dv81_output, dv81_display = "default", dv81_tonemap = "polynomial";
+  uint16_t dv81_max_lum = 1000, dv81_min_lum = 0;
+  bool dv81_from_p4 = false;
+  dv81_cmd->add_option("--input,-i", dv81_input, "Source MXF file")->required();
+  dv81_cmd->add_option("--rpu", dv81_rpu, "RPU metadata file")->required();
+  dv81_cmd->add_option("--output,-o", dv81_output, "Output directory")->required();
+  dv81_cmd->add_option("--target-display", dv81_display, "Target display (default, cinema, home_hdr)");
+  dv81_cmd->add_option("--tone-map", dv81_tonemap, "Tone map method (polynomial, mmr, pivoted)");
+  dv81_cmd->add_option("--max-luminance", dv81_max_lum, "Target max luminance (nits)")->default_val(1000);
+  dv81_cmd->add_option("--min-luminance", dv81_min_lum, "Target min luminance (nits)")->default_val(0);
+  dv81_cmd->add_flag("--from-profile4", dv81_from_p4, "Convert from Profile 4 RPU");
+
+  // === MXF-PLAY subcommand ===
+  auto* mxfplay_cmd = app.add_subcommand("mxf-play", "Play or probe MXF track files");
+  std::string mxfplay_input, mxfplay_thumbdir;
+  uint32_t mxfplay_start = 0, mxfplay_end = 0, mxfplay_interval = 24;
+  bool mxfplay_probe = false, mxfplay_thumbs = false;
+  mxfplay_cmd->add_option("--input,-i", mxfplay_input, "MXF file")->required();
+  mxfplay_cmd->add_option("--start", mxfplay_start, "Start frame");
+  mxfplay_cmd->add_option("--end", mxfplay_end, "End frame (0=all)");
+  mxfplay_cmd->add_flag("--probe", mxfplay_probe, "Probe file info only (no playback)");
+  mxfplay_cmd->add_flag("--thumbnails", mxfplay_thumbs, "Generate thumbnail images");
+  mxfplay_cmd->add_option("--thumb-dir", mxfplay_thumbdir, "Thumbnail output directory");
+  mxfplay_cmd->add_option("--thumb-interval", mxfplay_interval, "Thumbnail every N frames")->default_val(24);
 
   CLI11_PARSE(app, argc, argv);
 
@@ -1621,6 +1710,200 @@ int main(int argc, char* argv[])
       return 1;
     }
     std::cout << "SDI playback complete.\n";
+    return 0;
+  }
+  if(diff_cmd->parsed())
+  {
+    imfwizard::ImpDiffOptions opts;
+    opts.imp_a = diff_imp_a;
+    opts.imp_b = diff_imp_b;
+    opts.include_hashes = diff_hashes;
+    opts.json_output = diff_json;
+    opts.show_unchanged = diff_show_unchanged;
+    auto result = imfwizard::diff_packages(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    if(diff_json)
+    {
+      std::cout << "{\"tracks_added\":" << result.tracks_added
+                << ",\"tracks_removed\":" << result.tracks_removed
+                << ",\"tracks_modified\":" << result.tracks_modified
+                << ",\"segments_changed\":" << result.segments_changed << "}\n";
+    }
+    else
+    {
+      std::cout << "=== IMF Package Diff ===\n";
+      std::cout << "Tracks added: " << result.tracks_added << "\n";
+      std::cout << "Tracks removed: " << result.tracks_removed << "\n";
+      std::cout << "Tracks modified: " << result.tracks_modified << "\n";
+      std::cout << "Segments changed: " << result.segments_changed << "\n";
+      if(result.cpl_title_changed)
+        std::cout << "CPL title: CHANGED\n";
+      if(result.edit_rate_changed)
+        std::cout << "Edit rate: CHANGED\n";
+      for(auto& d : result.track_diffs)
+        std::cout << "  [" << d.status << "] " << d.track_id << " " << d.detail << "\n";
+    }
+    return 0;
+  }
+  if(otioz_cmd->parsed())
+  {
+    imfwizard::OtiozImportOptions opts;
+    opts.input_file = otioz_input;
+    opts.output_dir = otioz_output;
+    opts.title = otioz_title;
+    opts.fps = otioz_fps;
+    opts.generate_cpl = otioz_generate_cpl;
+    opts.extract_media = !otioz_no_extract;
+    auto result = imfwizard::import_otioz(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "OTIOZ imported: " << result.clips.size() << " clips\n";
+    std::cout << "  Video tracks: " << result.video_tracks << "\n";
+    std::cout << "  Audio tracks: " << result.audio_tracks << "\n";
+    if(!result.extracted_dir.empty())
+      std::cout << "  Media extracted to: " << result.extracted_dir.string() << "\n";
+    if(!result.generated_cpl.empty())
+      std::cout << "  CPL generated: " << result.generated_cpl.string() << "\n";
+    return 0;
+  }
+  if(mnode_cmd->parsed())
+  {
+    if(mnode_worker)
+    {
+      return imfwizard::run_render_worker(mnode_port, 0);
+    }
+    if(mnode_input.empty() || mnode_output.empty() || mnode_nodes.empty())
+    {
+      std::cerr << "Error: --input, --output, and --nodes required\n";
+      return 1;
+    }
+    imfwizard::MultiNodeOptions opts;
+    opts.input_dir = mnode_input;
+    opts.output_dir = mnode_output;
+    opts.nodes = mnode_nodes;
+    opts.codec = mnode_codec;
+    opts.chunk_size = mnode_chunk;
+    opts.bitrate = mnode_bitrate;
+    opts.coordinator_port = mnode_port;
+    opts.verify = mnode_verify;
+    auto result = imfwizard::distribute_encode(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Distributed encode complete\n";
+    std::cout << "  Frames: " << result.frames_encoded << "/" << result.total_frames << "\n";
+    std::cout << "  Nodes used: " << result.nodes_used << "\n";
+    std::cout << "  Elapsed: " << result.elapsed_seconds << "s\n";
+    std::cout << "  Speedup: " << result.speedup_factor << "x\n";
+    return 0;
+  }
+  if(kdm_cmd->parsed())
+  {
+    imfwizard::KdmOptions opts;
+    opts.dcp_dir = kdm_dcp;
+    if(!kdm_cpl.empty())
+      opts.cpl_file = kdm_cpl;
+    opts.signer_key = kdm_signer_key;
+    opts.signer_cert = kdm_signer_cert;
+    opts.output_dir = kdm_output;
+    opts.valid_from = kdm_from;
+    opts.valid_to = kdm_to;
+    opts.content_title = kdm_title;
+    opts.forensic_mark = kdm_forensic;
+    opts.interop = kdm_interop;
+    for(auto& cert_file : kdm_recipients)
+    {
+      imfwizard::KdmRecipient r;
+      r.name = std::filesystem::path(cert_file).stem().string();
+      r.certificate_file = cert_file;
+      opts.recipients.push_back(r);
+    }
+    auto result = imfwizard::generate_kdm(opts);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Generated " << result.kdms_generated << " KDM(s):\n";
+    for(auto& f : result.output_files)
+      std::cout << "  " << f.string() << "\n";
+    return 0;
+  }
+  if(dv81_cmd->parsed())
+  {
+    imfwizard::DolbyVision81Config cfg;
+    cfg.source_mxf = dv81_input;
+    cfg.rpu_file = dv81_rpu;
+    cfg.output_dir = dv81_output;
+    cfg.target_display = dv81_display;
+    cfg.tone_map_method = dv81_tonemap;
+    cfg.target_max_luminance = dv81_max_lum;
+    cfg.target_min_luminance = dv81_min_lum;
+    imfwizard::DolbyVision81Result result;
+    if(dv81_from_p4)
+      result = imfwizard::convert_profile4_to_81(dv81_rpu, cfg);
+    else
+      result = imfwizard::inject_dv81_metadata(cfg);
+    if(!result.success)
+    {
+      std::cerr << "Error: " << result.error << "\n";
+      return 1;
+    }
+    std::cout << "Dolby Vision Profile 8.1 applied\n";
+    std::cout << "  Output: " << result.output_mxf.string() << "\n";
+    std::cout << "  HDR10 compatible: " << (result.hdr10_compatible ? "yes" : "no") << "\n";
+    return 0;
+  }
+  if(mxfplay_cmd->parsed())
+  {
+    if(mxfplay_probe)
+    {
+      auto info = imfwizard::probe_mxf(mxfplay_input);
+      if(!info.success)
+      {
+        std::cerr << "Error: " << info.error << "\n";
+        return 1;
+      }
+      std::cout << "MXF Info:\n";
+      std::cout << "  Resolution: " << info.width << "x" << info.height << "\n";
+      std::cout << "  FPS: " << info.fps << "\n";
+      std::cout << "  Codec: " << info.codec << "\n";
+      std::cout << "  Frames: " << info.total_frames << "\n";
+      std::cout << "  Duration: " << info.duration_seconds << "s\n";
+      return 0;
+    }
+    if(mxfplay_thumbs)
+    {
+      imfwizard::MxfPlaybackOptions opts;
+      opts.mxf_file = mxfplay_input;
+      opts.start_frame = mxfplay_start;
+      opts.end_frame = mxfplay_end;
+      opts.thumbnail_dir = mxfplay_thumbdir.empty() ? "/tmp/mxf_thumbs" : mxfplay_thumbdir;
+      opts.thumbnail_interval = mxfplay_interval;
+      auto result = imfwizard::generate_thumbnails(opts);
+      if(!result.success)
+      {
+        std::cerr << "Error: " << result.error << "\n";
+        return 1;
+      }
+      std::cout << "Generated " << result.thumbnails.size() << " thumbnails\n";
+      return 0;
+    }
+    // Launch playback
+    imfwizard::MxfPlaybackOptions opts;
+    opts.mxf_file = mxfplay_input;
+    opts.start_frame = mxfplay_start;
+    opts.end_frame = mxfplay_end;
+    imfwizard::launch_playback(opts);
     return 0;
   }
 
