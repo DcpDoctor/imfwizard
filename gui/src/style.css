@@ -3,7 +3,7 @@
   --surface: #1c1c28;
   --surface-hover: #252535;
   --primary: #2d4a7a;
-  --accent: #e94560;
+  --accent: #3b82f6;
   --text: #eaeaea;
   --text-muted: #9a9ab0;
   --border: #2e2e42;
@@ -15,7 +15,7 @@ body.light-theme {
   --surface: #ffffff;
   --surface-hover: #eaeaea;
   --primary: #1a73e8;
-  --accent: #d93025;
+  --accent: #1a73e8;
   --text: #202124;
   --text-muted: #5f6368;
   --border: #dadce0;
@@ -135,7 +135,7 @@ body.light-theme .field select option {
 .field select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.2);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
 }
 
 .path-display {

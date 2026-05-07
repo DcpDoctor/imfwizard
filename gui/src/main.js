@@ -78,6 +78,7 @@ function renderRecentProjects() {
       document.querySelector('[data-page="validate-page"]').click();
       document.getElementById("val-path").textContent = path;
       valDir = path;
+      checkFormReady();
     });
   });
 }
@@ -108,6 +109,35 @@ document.getElementById("preset")?.addEventListener("change", (e) => {
 // === Initialize timeline & preview ===
 initTimeline();
 initPreview();
+
+// === Form validation — disable buttons until required fields are filled ===
+const formRules = {
+  "create-btn": () => videoDir && outputDir && document.getElementById("title")?.value?.trim(),
+  "sup-create": () => supOvDir && supVideoDir && supOutputDir,
+  "loud-measure": () => loudFile,
+  "meta-save": () => metaDir,
+  "tc-start": () => tcInput && tcOutput,
+  "val-start": () => valDir,
+  "bi-start": () => biVideoPath && biSubsPath && biOutputPath,
+  "an-analyze": () => anPath,
+  "dcp-convert": () => dcpImpPath && dcpOutputPath,
+  "del-start": () => delVideoPath && delOutputPath && document.getElementById("del-title")?.value?.trim(),
+  "asset-scan": () => assetDir,
+};
+
+function checkFormReady() {
+  for (const [btnId, check] of Object.entries(formRules)) {
+    const btn = document.getElementById(btnId);
+    if (btn) {
+      btn.disabled = !check();
+    }
+  }
+}
+
+// Run validation on any input change
+document.addEventListener("input", checkFormReady);
+// Initial state — disable all buttons
+setTimeout(checkFormReady, 0);
 
 // === Drag and Drop ===
 const dropOverlay = document.getElementById("drop-overlay");
@@ -142,6 +172,7 @@ document.addEventListener("drop", async (e) => {
     videoDir = path;
     document.getElementById("video-path").textContent = path;
   }
+  checkFormReady();
 });
 
 // === Create OV IMP ===
@@ -155,6 +186,7 @@ document.getElementById("select-video").addEventListener("click", async () => {
   if (selected) {
     videoDir = selected;
     document.getElementById("video-path").textContent = selected;
+    checkFormReady();
   }
 });
 
@@ -166,6 +198,7 @@ document.getElementById("select-audio").addEventListener("click", async () => {
   if (selected) {
     audioFile = selected;
     document.getElementById("audio-path").textContent = selected;
+    checkFormReady();
   }
 });
 
@@ -177,6 +210,7 @@ document.getElementById("select-subtitle")?.addEventListener("click", async () =
   if (selected) {
     subtitleFile = selected;
     document.getElementById("subtitle-path").textContent = selected;
+    checkFormReady();
   }
 });
 
@@ -185,6 +219,7 @@ document.getElementById("select-output").addEventListener("click", async () => {
   if (selected) {
     outputDir = selected;
     document.getElementById("output-path").textContent = selected;
+    checkFormReady();
   }
 });
 
@@ -254,22 +289,22 @@ let supOvDir = "", supVideoDir = "", supAudioFile = "", supOutputDir = "";
 
 document.getElementById("sup-select-ov")?.addEventListener("click", async () => {
   const selected = await open({ directory: true, title: "Select OV IMP Directory" });
-  if (selected) { supOvDir = selected; document.getElementById("sup-ov-path").textContent = selected; }
+  if (selected) { supOvDir = selected; document.getElementById("sup-ov-path").textContent = selected; checkFormReady(); }
 });
 
 document.getElementById("sup-select-video")?.addEventListener("click", async () => {
   const selected = await open({ directory: true, title: "Select Replacement Video Directory" });
-  if (selected) { supVideoDir = selected; document.getElementById("sup-video-path").textContent = selected; }
+  if (selected) { supVideoDir = selected; document.getElementById("sup-video-path").textContent = selected; checkFormReady(); }
 });
 
 document.getElementById("sup-select-audio")?.addEventListener("click", async () => {
   const selected = await open({ filters: [{ name: "WAV", extensions: ["wav"] }] });
-  if (selected) { supAudioFile = selected; document.getElementById("sup-audio-path").textContent = selected; }
+  if (selected) { supAudioFile = selected; document.getElementById("sup-audio-path").textContent = selected; checkFormReady(); }
 });
 
 document.getElementById("sup-select-output")?.addEventListener("click", async () => {
   const selected = await open({ directory: true, title: "Select Output Directory" });
-  if (selected) { supOutputDir = selected; document.getElementById("sup-output-path").textContent = selected; }
+  if (selected) { supOutputDir = selected; document.getElementById("sup-output-path").textContent = selected; checkFormReady(); }
 });
 
 document.getElementById("sup-create")?.addEventListener("click", async () => {
@@ -312,12 +347,12 @@ let tcInput = "", tcOutput = "";
 
 document.getElementById("tc-select-input").addEventListener("click", async () => {
   const selected = await open({ title: "Select Video File" });
-  if (selected) { tcInput = selected; document.getElementById("tc-input-path").textContent = selected; }
+  if (selected) { tcInput = selected; document.getElementById("tc-input-path").textContent = selected; checkFormReady(); }
 });
 
 document.getElementById("tc-select-output").addEventListener("click", async () => {
   const selected = await open({ directory: true, title: "Select Output Directory" });
-  if (selected) { tcOutput = selected; document.getElementById("tc-output-path").textContent = selected; }
+  if (selected) { tcOutput = selected; document.getElementById("tc-output-path").textContent = selected; checkFormReady(); }
 });
 
 document.getElementById("tc-start").addEventListener("click", async () => {
@@ -361,7 +396,7 @@ let loudFile = "";
 
 document.getElementById("loud-select")?.addEventListener("click", async () => {
   const selected = await open({ filters: [{ name: "Audio", extensions: ["wav", "mp3", "aac", "flac", "mxf"] }] });
-  if (selected) { loudFile = selected; document.getElementById("loud-path").textContent = selected; }
+  if (selected) { loudFile = selected; document.getElementById("loud-path").textContent = selected; checkFormReady(); }
 });
 
 document.getElementById("loud-measure")?.addEventListener("click", async () => {
@@ -407,7 +442,7 @@ let metaDir = "";
 
 document.getElementById("meta-select")?.addEventListener("click", async () => {
   const selected = await open({ directory: true, title: "Select IMP Directory" });
-  if (selected) { metaDir = selected; document.getElementById("meta-path").textContent = selected; }
+  if (selected) { metaDir = selected; document.getElementById("meta-path").textContent = selected; checkFormReady(); }
 });
 
 document.getElementById("meta-load")?.addEventListener("click", async () => {
@@ -462,7 +497,7 @@ let valDir = "";
 
 document.getElementById("val-select").addEventListener("click", async () => {
   const selected = await open({ directory: true, title: "Select IMP Directory" });
-  if (selected) { valDir = selected; document.getElementById("val-path").textContent = selected; }
+  if (selected) { valDir = selected; document.getElementById("val-path").textContent = selected; checkFormReady(); }
 });
 
 document.getElementById("val-start").addEventListener("click", async () => {
@@ -585,15 +620,15 @@ let biVideoPath = "", biSubsPath = "", biOutputPath = "";
 
 document.getElementById("bi-select-video")?.addEventListener("click", async () => {
   const f = await open({ filters: [{ name: "Video", extensions: ["mp4", "mov", "mkv", "mxf"] }] });
-  if (f) { biVideoPath = f; document.getElementById("bi-video-path").textContent = f; }
+  if (f) { biVideoPath = f; document.getElementById("bi-video-path").textContent = f; checkFormReady(); }
 });
 document.getElementById("bi-select-subs")?.addEventListener("click", async () => {
   const f = await open({ filters: [{ name: "Subtitles", extensions: ["srt", "ttml", "xml", "scc"] }] });
-  if (f) { biSubsPath = f; document.getElementById("bi-subs-path").textContent = f; }
+  if (f) { biSubsPath = f; document.getElementById("bi-subs-path").textContent = f; checkFormReady(); }
 });
 document.getElementById("bi-select-output")?.addEventListener("click", async () => {
   const f = await save({ filters: [{ name: "Video", extensions: ["mp4", "mov", "mkv"] }] });
-  if (f) { biOutputPath = f; document.getElementById("bi-output-path").textContent = f; }
+  if (f) { biOutputPath = f; document.getElementById("bi-output-path").textContent = f; checkFormReady(); }
 });
 document.getElementById("bi-start")?.addEventListener("click", async () => {
   if (!biVideoPath || !biSubsPath) { alert("Select video and subtitle files"); return; }
@@ -616,7 +651,7 @@ let anPath = "";
 
 document.getElementById("an-select")?.addEventListener("click", async () => {
   const d = await open({ directory: true });
-  if (d) { anPath = d; document.getElementById("an-path").textContent = d; }
+  if (d) { anPath = d; document.getElementById("an-path").textContent = d; checkFormReady(); }
 });
 
 document.getElementById("an-analyze")?.addEventListener("click", async () => {
@@ -700,15 +735,15 @@ let delVideoPath = "", delAudioPath = "", delOutputPath = "";
 
 document.getElementById("del-select-video")?.addEventListener("click", async () => {
   const d = await open({ directory: true });
-  if (d) { delVideoPath = d; document.getElementById("del-video-path").textContent = d; }
+  if (d) { delVideoPath = d; document.getElementById("del-video-path").textContent = d; checkFormReady(); }
 });
 document.getElementById("del-select-audio")?.addEventListener("click", async () => {
   const f = await open({ filters: [{ name: "Audio", extensions: ["wav"] }] });
-  if (f) { delAudioPath = f; document.getElementById("del-audio-path").textContent = f; }
+  if (f) { delAudioPath = f; document.getElementById("del-audio-path").textContent = f; checkFormReady(); }
 });
 document.getElementById("del-select-output")?.addEventListener("click", async () => {
   const d = await open({ directory: true });
-  if (d) { delOutputPath = d; document.getElementById("del-output-path").textContent = d; }
+  if (d) { delOutputPath = d; document.getElementById("del-output-path").textContent = d; checkFormReady(); }
 });
 document.getElementById("del-start")?.addEventListener("click", async () => {
   const title = document.getElementById("del-title").value;
@@ -736,11 +771,11 @@ let dcpImpPath = "", dcpOutputPath = "";
 
 document.getElementById("dcp-select-imp")?.addEventListener("click", async () => {
   const d = await open({ directory: true });
-  if (d) { dcpImpPath = d; document.getElementById("dcp-imp-path").textContent = d; }
+  if (d) { dcpImpPath = d; document.getElementById("dcp-imp-path").textContent = d; checkFormReady(); }
 });
 document.getElementById("dcp-select-output")?.addEventListener("click", async () => {
   const d = await open({ directory: true });
-  if (d) { dcpOutputPath = d; document.getElementById("dcp-output-path").textContent = d; }
+  if (d) { dcpOutputPath = d; document.getElementById("dcp-output-path").textContent = d; checkFormReady(); }
 });
 document.getElementById("dcp-convert")?.addEventListener("click", async () => {
   if (!dcpImpPath || !dcpOutputPath) { alert("Select IMP and output directories"); return; }
@@ -815,7 +850,7 @@ let assetDir = "";
 
 document.getElementById("asset-select-dir")?.addEventListener("click", async () => {
   const d = await open({ directory: true, title: "Select IMP Directory" });
-  if (d) { assetDir = d; document.getElementById("asset-dir-path").textContent = d; }
+  if (d) { assetDir = d; document.getElementById("asset-dir-path").textContent = d; checkFormReady(); }
 });
 
 document.getElementById("asset-scan")?.addEventListener("click", async () => {
