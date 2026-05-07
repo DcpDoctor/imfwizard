@@ -1,10 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Command } from "@tauri-apps/plugin-shell";
+import { sendNotification, isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { initTimeline } from "./timeline.js";
 import { initPreview } from "./preview.js";
 
-// Tab navigation
+// === Tab navigation ===
 document.querySelectorAll(".nav-tabs button[data-page]").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".nav-tabs button[data-page]").forEach(b => b.classList.remove("active"));
@@ -14,29 +15,143 @@ document.querySelectorAll(".nav-tabs button[data-page]").forEach((btn) => {
   });
 });
 
-// Theme toggle
+// === Theme toggle ===
 const themeBtn = document.getElementById("theme-toggle");
 themeBtn?.addEventListener("click", () => {
   document.body.classList.toggle("light-theme");
   themeBtn.textContent = document.body.classList.contains("light-theme") ? "☀️" : "🌙";
   localStorage.setItem("theme", document.body.classList.contains("light-theme") ? "light" : "dark");
 });
-// Restore saved theme
 if (localStorage.getItem("theme") === "light") {
   document.body.classList.add("light-theme");
   if (themeBtn) themeBtn.textContent = "☀️";
 }
 
-// Initialize timeline & preview
+// === Notifications ===
+async function notify(title, body) {
+  let granted = await isPermissionGranted();
+  if (!granted) {
+    const perm = await requestPermission();
+    granted = perm === "granted";
+  }
+  if (granted) {
+    sendNotification({ title, body });
+  }
+}
+
+// === Recent Projects ===
+function getRecentProjects() {
+  try {
+    return JSON.parse(localStorage.getItem("recent_projects") || "[]");
+  } catch { return []; }
+}
+
+function addRecentProject(path, title) {
+  let projects = getRecentProjects();
+  projects = projects.filter(p => p.path !== path);
+  projects.unshift({ path, title, date: new Date().toISOString() });
+  if (projects.length > 8) projects = projects.slice(0, 8);
+  localStorage.setItem("recent_projects", JSON.stringify(projects));
+  renderRecentProjects();
+}
+
+function renderRecentProjects() {
+  const projects = getRecentProjects();
+  const container = document.getElementById("recent-projects");
+  const list = document.getElementById("recent-list");
+  if (!container || !list) return;
+
+  if (projects.length === 0) {
+    container.style.display = "none";
+    return;
+  }
+
+  container.style.display = "flex";
+  list.innerHTML = projects.map(p => {
+    const shortPath = p.path.split("/").slice(-2).join("/");
+    return `<button class="recent-item" data-path="${p.path}" title="${p.path}">${p.title || shortPath}</button>`;
+  }).join("");
+
+  list.querySelectorAll(".recent-item").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const path = btn.dataset.path;
+      document.querySelector('[data-page="validate-page"]').click();
+      document.getElementById("val-path").textContent = path;
+      valDir = path;
+    });
+  });
+}
+
+renderRecentProjects();
+
+// === Presets ===
+const PRESETS = {
+  custom: {},
+  netflix: { fps: "24/1", colorSpace: "bt2020-pq", bitrate: 250 },
+  disney: { fps: "24/1", colorSpace: "bt2020-pq", bitrate: 250 },
+  amazon: { fps: "24/1", colorSpace: "bt2020-pq", bitrate: 200 },
+  apple: { fps: "24/1", colorSpace: "p3-d65-pq", bitrate: 250 },
+  cinema2k: { fps: "24/1", colorSpace: "bt709", bitrate: 250 },
+  cinema4k: { fps: "24/1", colorSpace: "bt709", bitrate: 500 },
+  broadcast: { fps: "25/1", colorSpace: "bt709", bitrate: 150 },
+  archival: { fps: "24/1", colorSpace: "bt709", bitrate: 500 },
+};
+
+document.getElementById("preset")?.addEventListener("change", (e) => {
+  const preset = PRESETS[e.target.value];
+  if (!preset || !Object.keys(preset).length) return;
+  if (preset.fps) document.getElementById("fps").value = preset.fps;
+  if (preset.colorSpace) document.getElementById("color-space").value = preset.colorSpace;
+  if (preset.bitrate) document.getElementById("encode-bitrate").value = preset.bitrate;
+});
+
+// === Initialize timeline & preview ===
 initTimeline();
 initPreview();
 
+// === Drag and Drop ===
+const dropOverlay = document.getElementById("drop-overlay");
+
+document.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  if (dropOverlay) dropOverlay.hidden = false;
+});
+
+document.addEventListener("dragleave", (e) => {
+  if (e.relatedTarget === null && dropOverlay) dropOverlay.hidden = true;
+});
+
+document.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  if (dropOverlay) dropOverlay.hidden = true;
+
+  const files = Array.from(e.dataTransfer?.files || []);
+  if (files.length === 0) return;
+
+  const first = files[0];
+  const ext = first.name.split(".").pop().toLowerCase();
+
+  if (["wav"].includes(ext)) {
+    audioFile = first.path || first.name;
+    document.getElementById("audio-path").textContent = audioFile;
+  } else if (["xml", "ttml"].includes(ext)) {
+    subtitleFile = first.path || first.name;
+    document.getElementById("subtitle-path").textContent = subtitleFile;
+  } else {
+    const path = first.path || first.name;
+    videoDir = path;
+    document.getElementById("video-path").textContent = path;
+  }
+});
+
+// === Create OV IMP ===
 let videoDir = "";
 let audioFile = "";
+let subtitleFile = "";
 let outputDir = "";
 
 document.getElementById("select-video").addEventListener("click", async () => {
-  const selected = await open({ directory: true, title: "Select J2K Directory" });
+  const selected = await open({ directory: true, title: "Select Image Sequence / J2K Directory" });
   if (selected) {
     videoDir = selected;
     document.getElementById("video-path").textContent = selected;
@@ -54,6 +169,17 @@ document.getElementById("select-audio").addEventListener("click", async () => {
   }
 });
 
+document.getElementById("select-subtitle")?.addEventListener("click", async () => {
+  const selected = await open({
+    filters: [{ name: "TTML/IMSC", extensions: ["xml", "ttml"] }],
+    title: "Select Subtitle File",
+  });
+  if (selected) {
+    subtitleFile = selected;
+    document.getElementById("subtitle-path").textContent = selected;
+  }
+});
+
 document.getElementById("select-output").addEventListener("click", async () => {
   const selected = await open({ directory: true, title: "Select Output Directory" });
   if (selected) {
@@ -68,6 +194,9 @@ document.getElementById("create-form").addEventListener("submit", async (e) => {
   const title = document.getElementById("title").value;
   const issuer = document.getElementById("issuer").value;
   const fps = document.getElementById("fps").value;
+  const colorSpace = document.getElementById("color-space").value;
+  const bitrate = document.getElementById("encode-bitrate").value;
+  const threads = document.getElementById("encode-threads").value;
   const [fpsNum, fpsDen] = fps.split("/");
 
   if (!videoDir || !outputDir) {
@@ -95,17 +224,22 @@ document.getElementById("create-form").addEventListener("submit", async (e) => {
       "--fps-den", fpsDen,
     ];
 
-    if (audioFile) {
-      args.push("--audio", audioFile);
-    }
+    if (audioFile) args.push("--audio", audioFile);
+    if (subtitleFile) args.push("--subtitle", subtitleFile);
+    if (colorSpace !== "bt709") args.push("--color-space", colorSpace);
+    if (bitrate && bitrate !== "250") args.push("--bitrate", bitrate);
+    if (threads && threads !== "0") args.push("--threads", threads);
 
     const command = Command.sidecar("imfwizard", args);
     const output = await command.execute();
 
     if (output.code === 0) {
       outputLog.textContent += output.stdout + "\nDone!\n";
+      addRecentProject(outputDir, title);
+      notify("IMF Wizard", `IMP "${title}" created successfully`);
     } else {
       outputLog.textContent += "ERROR:\n" + output.stderr + "\n";
+      notify("IMF Wizard", "IMP creation failed");
     }
   } catch (err) {
     outputLog.textContent += "Error: " + err + "\n";
@@ -113,6 +247,64 @@ document.getElementById("create-form").addEventListener("submit", async (e) => {
 
   btn.disabled = false;
   btn.textContent = "Create IMP";
+});
+
+// === Supplemental IMP ===
+let supOvDir = "", supVideoDir = "", supAudioFile = "", supOutputDir = "";
+
+document.getElementById("sup-select-ov")?.addEventListener("click", async () => {
+  const selected = await open({ directory: true, title: "Select OV IMP Directory" });
+  if (selected) { supOvDir = selected; document.getElementById("sup-ov-path").textContent = selected; }
+});
+
+document.getElementById("sup-select-video")?.addEventListener("click", async () => {
+  const selected = await open({ directory: true, title: "Select Replacement Video Directory" });
+  if (selected) { supVideoDir = selected; document.getElementById("sup-video-path").textContent = selected; }
+});
+
+document.getElementById("sup-select-audio")?.addEventListener("click", async () => {
+  const selected = await open({ filters: [{ name: "WAV", extensions: ["wav"] }] });
+  if (selected) { supAudioFile = selected; document.getElementById("sup-audio-path").textContent = selected; }
+});
+
+document.getElementById("sup-select-output")?.addEventListener("click", async () => {
+  const selected = await open({ directory: true, title: "Select Output Directory" });
+  if (selected) { supOutputDir = selected; document.getElementById("sup-output-path").textContent = selected; }
+});
+
+document.getElementById("sup-create")?.addEventListener("click", async () => {
+  if (!supOvDir || !supVideoDir || !supOutputDir) {
+    alert("Please select OV directory, replacement video, and output directory.");
+    return;
+  }
+
+  const log = document.getElementById("sup-log");
+  log.style.display = "block";
+  log.textContent = "Creating supplemental IMP...\n";
+
+  const title = document.getElementById("sup-title").value || "Supplemental";
+  const entryPoint = document.getElementById("sup-entry-point").value;
+  const duration = document.getElementById("sup-duration").value;
+
+  const args = [
+    "supplement",
+    "--title", title,
+    "--ov", supOvDir,
+    "--video", supVideoDir,
+    "--output", supOutputDir,
+    "--entry-point", entryPoint,
+    "--duration", duration,
+  ];
+  if (supAudioFile) args.push("--audio", supAudioFile);
+
+  const result = await Command.sidecar("imfwizard", args).execute();
+  if (result.code === 0) {
+    log.textContent += result.stdout + "\nDone!";
+    addRecentProject(supOutputDir, title);
+    notify("IMF Wizard", `Supplemental IMP "${title}" created`);
+  } else {
+    log.textContent += "ERROR:\n" + result.stderr;
+  }
 });
 
 // === Transcode page ===
@@ -141,14 +333,19 @@ document.getElementById("tc-start").addEventListener("click", async () => {
     "transcode", "-i", tcInput, "-o", tcOutput, "-f", format, "--bit-depth", bitdepth
   ]);
   const output = await command.execute();
-  log.textContent += output.code === 0 ? output.stdout + "\nDone!" : "ERROR:\n" + output.stderr;
+  if (output.code === 0) {
+    log.textContent += output.stdout + "\nDone!";
+    notify("IMF Wizard", "Transcode complete");
+  } else {
+    log.textContent += "ERROR:\n" + output.stderr;
+  }
 });
 
 document.getElementById("tc-queue")?.addEventListener("click", async () => {
   if (!tcInput || !tcOutput) { alert("Select input and output."); return; }
   const format = document.getElementById("tc-format").value;
   const bitdepth = document.getElementById("tc-bitdepth").value;
-  const desc = `Transcode ${tcInput.split("/").pop()} → ${format}`;
+  const desc = `Transcode ${tcInput.split("/").pop()} \u2192 ${format}`;
   const args = ["batch", "add", "-T", "transcode", "-d", desc, "--",
     "transcode", "-i", tcInput, "-o", tcOutput, "-f", format, "--bit-depth", bitdepth];
   const result = await Command.sidecar("imfwizard", args).execute();
@@ -156,6 +353,107 @@ document.getElementById("tc-queue")?.addEventListener("click", async () => {
     alert("Job submitted to queue!");
   } else {
     alert("Failed: " + (result.stderr || "Daemon not running"));
+  }
+});
+
+// === Loudness page ===
+let loudFile = "";
+
+document.getElementById("loud-select")?.addEventListener("click", async () => {
+  const selected = await open({ filters: [{ name: "Audio", extensions: ["wav", "mp3", "aac", "flac", "mxf"] }] });
+  if (selected) { loudFile = selected; document.getElementById("loud-path").textContent = selected; }
+});
+
+document.getElementById("loud-measure")?.addEventListener("click", async () => {
+  if (!loudFile) { alert("Select an audio file."); return; }
+
+  const btn = document.getElementById("loud-measure");
+  btn.disabled = true;
+  btn.textContent = "Measuring...";
+
+  const result = await Command.sidecar("imfwizard", ["loudness", loudFile]).execute();
+  btn.disabled = false;
+  btn.textContent = "Measure Loudness";
+
+  const panel = document.getElementById("loud-results");
+  panel.style.display = "block";
+
+  if (result.code === 0) {
+    const output = result.stdout;
+    const intMatch = output.match(/Integrated:\s*([-\d.]+)/);
+    const rangeMatch = output.match(/Range:\s*([-\d.]+)/);
+    const peakMatch = output.match(/Peak:\s*([-\d.]+)/);
+    const r128Match = output.match(/R128:\s*(\w+)/);
+    const atscMatch = output.match(/ATSC:\s*(\w+)/);
+
+    document.getElementById("loud-integrated").textContent = intMatch ? `${intMatch[1]} LUFS` : "\u2014";
+    document.getElementById("loud-range").textContent = rangeMatch ? `${rangeMatch[1]} LU` : "\u2014";
+    document.getElementById("loud-peak").textContent = peakMatch ? `${peakMatch[1]} dBTP` : "\u2014";
+
+    const r128El = document.getElementById("loud-r128");
+    r128El.textContent = r128Match ? r128Match[1] : "\u2014";
+    r128El.className = "compliance-badge " + (r128Match?.[1] === "PASS" ? "pass" : "fail");
+
+    const atscEl = document.getElementById("loud-atsc");
+    atscEl.textContent = atscMatch ? atscMatch[1] : "\u2014";
+    atscEl.className = "compliance-badge " + (atscMatch?.[1] === "PASS" ? "pass" : "fail");
+  } else {
+    document.getElementById("loud-integrated").textContent = "Error: " + result.stderr;
+  }
+});
+
+// === Metadata Editor ===
+let metaDir = "";
+
+document.getElementById("meta-select")?.addEventListener("click", async () => {
+  const selected = await open({ directory: true, title: "Select IMP Directory" });
+  if (selected) { metaDir = selected; document.getElementById("meta-path").textContent = selected; }
+});
+
+document.getElementById("meta-load")?.addEventListener("click", async () => {
+  if (!metaDir) { alert("Select an IMP directory."); return; }
+
+  const result = await Command.sidecar("imfwizard", ["info", metaDir]).execute();
+  if (result.code === 0) {
+    document.getElementById("meta-fields").style.display = "block";
+    const output = result.stdout;
+    const titleMatch = output.match(/Title:\s*(.+)/);
+    const issuerMatch = output.match(/Issuer:\s*(.+)/);
+    const annotMatch = output.match(/Annotation:\s*(.+)/);
+
+    if (titleMatch) document.getElementById("meta-title").value = titleMatch[1].trim();
+    if (issuerMatch) document.getElementById("meta-issuer").value = issuerMatch[1].trim();
+    if (annotMatch) document.getElementById("meta-annotation").value = annotMatch[1].trim();
+    document.getElementById("meta-tracks").textContent = output;
+  } else {
+    alert("Failed to load IMP: " + result.stderr);
+  }
+});
+
+document.getElementById("meta-save")?.addEventListener("click", async () => {
+  if (!metaDir) return;
+
+  const title = document.getElementById("meta-title").value;
+  const annotation = document.getElementById("meta-annotation").value;
+  const issuer = document.getElementById("meta-issuer").value;
+  const contentKind = document.getElementById("meta-content-kind").value;
+  const versionLabel = document.getElementById("meta-version-label").value;
+  const locale = document.getElementById("meta-locale").value;
+
+  const args = ["metadata", "--imp", metaDir];
+  if (title) args.push("--title", title);
+  if (annotation) args.push("--annotation", annotation);
+  if (issuer) args.push("--issuer", issuer);
+  if (contentKind) args.push("--content-kind", contentKind);
+  if (versionLabel) args.push("--version-label", versionLabel);
+  if (locale) args.push("--locale", locale);
+
+  const result = await Command.sidecar("imfwizard", args).execute();
+  if (result.code === 0) {
+    alert("Metadata saved successfully!");
+    notify("IMF Wizard", "Metadata updated");
+  } else {
+    alert("Failed: " + result.stderr);
   }
 });
 
@@ -176,6 +474,7 @@ document.getElementById("val-start").addEventListener("click", async () => {
   const command = Command.sidecar("imfwizard", ["validate", valDir]);
   const output = await command.execute();
   log.textContent += output.stdout + (output.stderr || "");
+  notify("IMF Wizard", output.code === 0 ? "Validation passed" : "Validation found issues");
 });
 
 // === Jobs page ===
@@ -196,7 +495,6 @@ async function refreshJobs() {
     statusBadge.textContent = "Daemon online";
     statusBadge.className = "status-badge online";
 
-    // Parse the table output
     const lines = result.stdout.trim().split("\n");
     const tbody = document.getElementById("jobs-tbody");
 
@@ -205,7 +503,6 @@ async function refreshJobs() {
       return;
     }
 
-    // Skip header lines (first 2)
     const jobLines = lines.slice(2).filter(l => l.trim());
     tbody.innerHTML = jobLines.map(line => {
       const parts = line.trim().split(/\s+/);
@@ -228,7 +525,6 @@ async function refreshJobs() {
       </tr>`;
     }).join("");
 
-    // Attach cancel handlers
     tbody.querySelectorAll(".btn-cancel").forEach(btn => {
       btn.addEventListener("click", async () => {
         const jobId = btn.dataset.jobId;

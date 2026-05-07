@@ -27,6 +27,7 @@
     },
     "shell:allow-stdin-write",
     "shell:allow-kill",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "notification:default"
   ]
 }

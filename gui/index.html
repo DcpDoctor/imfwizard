@@ -7,16 +7,30 @@
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
+  <div id="drop-overlay" class="drop-overlay" hidden>
+    <div class="drop-content">
+      <span class="drop-icon">📂</span>
+      <span>Drop files here to import</span>
+    </div>
+  </div>
   <div id="app">
     <header>
       <h1>IMF Wizard</h1>
       <p class="subtitle">Interoperable Master Format Package Creator</p>
     </header>
 
+    <div id="recent-projects" class="recent-bar" style="display:none;">
+      <span class="recent-label">Recent:</span>
+      <div id="recent-list" class="recent-list"></div>
+    </div>
+
     <nav class="nav-tabs">
       <button class="active" data-page="create-page">Create</button>
+      <button data-page="supplement-page">Supplement</button>
       <button data-page="timeline-page">Timeline</button>
       <button data-page="transcode-page">Transcode</button>
+      <button data-page="loudness-page">Loudness</button>
+      <button data-page="metadata-page">Metadata</button>
       <button data-page="validate-page">Validate</button>
       <button data-page="preview-page">Preview</button>
       <button data-page="jobs-page">Jobs</button>
@@ -30,6 +44,20 @@
         <h2>Create Original Version IMP</h2>
         <form id="create-form">
           <div class="field">
+            <label for="preset">Delivery Preset</label>
+            <select id="preset">
+              <option value="custom">Custom</option>
+              <option value="netflix">Netflix App#2E</option>
+              <option value="disney">Disney+</option>
+              <option value="amazon">Amazon</option>
+              <option value="apple">Apple TV+</option>
+              <option value="cinema2k">Cinema 2K</option>
+              <option value="cinema4k">Cinema 4K</option>
+              <option value="broadcast">Broadcast</option>
+              <option value="archival">Archival</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="title">Content Title</label>
             <input type="text" id="title" required />
           </div>
@@ -38,7 +66,7 @@
             <input type="text" id="issuer" value="IMF Wizard" />
           </div>
           <div class="field">
-            <label for="video-dir">J2K Codestream Directory</label>
+            <label for="video-dir">J2K / Image Sequence Directory</label>
             <button type="button" id="select-video">Browse...</button>
             <span id="video-path" class="path-display">No directory selected</span>
           </div>
@@ -46,6 +74,11 @@
             <label for="audio-file">Audio File (WAV)</label>
             <button type="button" id="select-audio">Browse...</button>
             <span id="audio-path" class="path-display">No file selected</span>
+          </div>
+          <div class="field">
+            <label for="subtitle-file">Subtitle File (TTML/IMSC) — Optional</label>
+            <button type="button" id="select-subtitle">Browse...</button>
+            <span id="subtitle-path" class="path-display">No file selected</span>
           </div>
           <div class="field">
             <label for="output-dir">Output Directory</label>
@@ -65,6 +98,26 @@
                 <option value="60/1">60 fps</option>
               </select>
             </div>
+            <div class="field">
+              <label for="color-space">Color Space</label>
+              <select id="color-space">
+                <option value="bt709">BT.709 (SDR)</option>
+                <option value="bt2020-pq">BT.2020 PQ (HDR10)</option>
+                <option value="bt2020-hlg">BT.2020 HLG</option>
+                <option value="p3-d65-pq">P3-D65 PQ</option>
+                <option value="aces">ACES (App#5)</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="encode-bitrate">Encode Bitrate (Mbps)</label>
+              <input type="number" id="encode-bitrate" value="250" min="50" max="1000" />
+            </div>
+            <div class="field">
+              <label for="encode-threads">Encode Threads</label>
+              <input type="number" id="encode-threads" value="0" min="0" placeholder="0 = auto" />
+            </div>
           </div>
           <button type="submit" class="btn-primary" id="create-btn">Create IMP</button>
         </form>
@@ -78,6 +131,121 @@
 
       <section class="page" id="timeline-page">
         <!-- Populated by timeline.js -->
+      </section>
+
+      <section class="page" id="supplement-page">
+        <section class="panel">
+          <h2>Create Supplemental IMP</h2>
+          <p class="field-hint">Create a versioned supplement referencing an existing Original Version IMP.</p>
+          <div class="field">
+            <label>Supplemental Title</label>
+            <input type="text" id="sup-title" placeholder="e.g. Version 2 — Director's Cut" />
+          </div>
+          <div class="field">
+            <label>Original Version (OV) IMP Directory</label>
+            <button type="button" id="sup-select-ov">Browse...</button>
+            <span id="sup-ov-path" class="path-display">No directory selected</span>
+          </div>
+          <div class="field">
+            <label>Replacement Video Segment (J2K Directory)</label>
+            <button type="button" id="sup-select-video">Browse...</button>
+            <span id="sup-video-path" class="path-display">No directory selected</span>
+          </div>
+          <div class="field">
+            <label>Replacement Audio (WAV) — Optional</label>
+            <button type="button" id="sup-select-audio">Browse...</button>
+            <span id="sup-audio-path" class="path-display">No file selected</span>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Entry Point (frame)</label>
+              <input type="number" id="sup-entry-point" value="0" min="0" />
+            </div>
+            <div class="field">
+              <label>Duration (frames)</label>
+              <input type="number" id="sup-duration" value="240" min="1" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Output Directory</label>
+            <button type="button" id="sup-select-output">Browse...</button>
+            <span id="sup-output-path" class="path-display">No directory selected</span>
+          </div>
+          <button class="btn-primary" id="sup-create">Create Supplemental IMP</button>
+          <pre id="sup-log" class="output-log-box" style="display:none; margin-top:1rem;"></pre>
+        </section>
+      </section>
+
+      <section class="page" id="loudness-page">
+        <section class="panel">
+          <h2>Loudness Analysis</h2>
+          <p class="field-hint">Measure EBU R128 / ATSC A/85 loudness compliance (requires ffmpeg).</p>
+          <div class="field">
+            <label>Audio File</label>
+            <button type="button" id="loud-select">Browse...</button>
+            <span id="loud-path" class="path-display">No file selected</span>
+          </div>
+          <button class="btn-primary" id="loud-measure">Measure Loudness</button>
+          <div id="loud-results" class="results-panel" style="display:none; margin-top:1rem;">
+            <div class="result-row"><span class="result-label">Integrated Loudness:</span><span id="loud-integrated">—</span></div>
+            <div class="result-row"><span class="result-label">Loudness Range:</span><span id="loud-range">—</span></div>
+            <div class="result-row"><span class="result-label">True Peak:</span><span id="loud-peak">—</span></div>
+            <div class="result-row"><span class="result-label">EBU R128:</span><span id="loud-r128" class="compliance-badge">—</span></div>
+            <div class="result-row"><span class="result-label">ATSC A/85:</span><span id="loud-atsc" class="compliance-badge">—</span></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" id="metadata-page">
+        <section class="panel">
+          <h2>IMP Metadata Editor</h2>
+          <p class="field-hint">Load an existing IMP and edit CPL annotations and metadata.</p>
+          <div class="field">
+            <label>IMP Directory</label>
+            <button type="button" id="meta-select">Browse...</button>
+            <span id="meta-path" class="path-display">No directory selected</span>
+          </div>
+          <button class="btn-secondary" id="meta-load">Load IMP Info</button>
+          <div id="meta-fields" style="display:none; margin-top:1rem;">
+            <div class="field">
+              <label>Content Title</label>
+              <input type="text" id="meta-title" />
+            </div>
+            <div class="field">
+              <label>Annotation</label>
+              <input type="text" id="meta-annotation" />
+            </div>
+            <div class="field">
+              <label>Issuer</label>
+              <input type="text" id="meta-issuer" />
+            </div>
+            <div class="field">
+              <label>Content Kind</label>
+              <select id="meta-content-kind">
+                <option value="feature">Feature</option>
+                <option value="short">Short</option>
+                <option value="trailer">Trailer</option>
+                <option value="episode">Episode</option>
+                <option value="advertisement">Advertisement</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Content Version Label</label>
+                <input type="text" id="meta-version-label" placeholder="e.g. 1.0" />
+              </div>
+              <div class="field">
+                <label>Locale (RFC 5646)</label>
+                <input type="text" id="meta-locale" placeholder="e.g. en-US" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Track Summary</label>
+              <pre id="meta-tracks" class="info-display"></pre>
+            </div>
+            <button class="btn-primary" id="meta-save">Save Metadata</button>
+          </div>
+        </section>
       </section>
 
       <section class="page" id="transcode-page">

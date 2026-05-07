@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IMF Wizard &mdash; Open Source IMF Package Creator</title>
-    <meta name="description" content="Open-source Interoperable Master Format (IMF) package creator. Create App#2E IMPs from JPEG 2000 and WAV. CLI tool and desktop GUI.">
+    <meta name="description" content="Open-source Interoperable Master Format (IMF) package creator. Create App#2E IMPs from JPEG 2000 and WAV. CLI tool and desktop GUI with dark theme.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -67,6 +67,7 @@
             font-weight: 700;
             font-size: 1.15rem;
         }
+        .nav-logo svg { width: 24px; height: 24px; }
         .nav-links {
             display: flex;
             align-items: center;
@@ -115,7 +116,7 @@
         }
         .hero p {
             font-size: 1.2rem;
-            max-width: 600px;
+            max-width: 650px;
             margin: 0 auto 2.5rem;
             color: var(--text-secondary);
         }
@@ -222,6 +223,73 @@
         .code-block .cmd { color: var(--green); }
         .code-block .flag { color: var(--amber); }
         .code-block .val { color: var(--cyan); }
+        .code-block .comment { color: var(--text-tertiary); }
+
+        .install-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 2rem;
+        }
+        .install-step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+        }
+        .install-step .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--accent-dim);
+            color: var(--accent);
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .install-step h4 {
+            color: var(--text-primary);
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+        .install-step p {
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+        }
+        .install-step code {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-primary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--cyan);
+        }
+
+        .gui-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 2rem;
+        }
+        .gui-feature {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .gui-feature h4 {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+        }
+        .gui-feature p {
+            color: var(--text-tertiary);
+            font-size: 0.83rem;
+        }
 
         .roadmap {
             display: grid;
@@ -253,6 +321,32 @@
         }
         .roadmap-item.active { border-color: var(--accent); }
 
+        .prereqs-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+            margin-top: 1.5rem;
+        }
+        .prereq {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .prereq .tag {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .prereq .required { background: rgba(251,113,133,0.15); color: var(--rose); }
+        .prereq .optional { background: rgba(74,222,128,0.15); color: var(--green); }
+        .prereq span:last-child { color: var(--text-secondary); font-size: 0.9rem; }
+
         footer {
             border-top: 1px solid var(--border);
             padding: 40px 32px;
@@ -283,8 +377,9 @@
         </a>
         <ul class="nav-links">
             <li><a href="#features">Features</a></li>
+            <li><a href="#install">Install</a></li>
+            <li><a href="#gui">GUI</a></li>
             <li><a href="#usage">Usage</a></li>
-            <li><a href="#roadmap">Roadmap</a></li>
             <li><a href="https://github.com/DcpDoctor/imfwizard">GitHub</a></li>
         </ul>
     </div>
@@ -292,30 +387,30 @@
 
 <section class="hero">
     <h1>Create IMF Packages<br>with <span>IMF Wizard</span></h1>
-    <p>Open-source CLI tool and desktop GUI for creating standards-compliant Interoperable Master Format packages. Supports image encoding, ProRes transcoding, Dolby Vision, subtitles, and Netflix Photon validation.</p>
+    <p>Open-source CLI tool and desktop GUI for creating standards-compliant Interoperable Master Format packages. Supports encoding, transcoding, Dolby Vision, ACES, subtitles, loudness metering, and Netflix Photon validation.</p>
     <div class="hero-buttons">
         <a href="https://github.com/DcpDoctor/imfwizard" class="btn btn-primary">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
             View on GitHub
         </a>
-        <a href="#usage" class="btn btn-secondary">Quick Start</a>
+        <a href="#install" class="btn btn-secondary">Quick Start</a>
     </div>
 </section>
 
 <section class="section" id="features">
     <h2 class="section-title">Features</h2>
-    <p class="section-subtitle">Standards-compliant IMF package creation, from essence to delivery.</p>
+    <p class="section-subtitle">Standards-compliant IMF package creation, from essence to validated delivery.</p>
 
     <div class="features-grid">
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(167,139,250,0.15);">📦</div>
             <h3>AS-02 MXF Wrapping</h3>
-            <p>Wrap JPEG 2000 codestreams and PCM audio into SMPTE 2067-5 compliant MXF track files.</p>
+            <p>Wrap JPEG 2000 codestreams and PCM audio into SMPTE 2067-5 compliant MXF track files with full metadata.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(34,211,238,0.15);">🎬</div>
             <h3>Image Encoding Pipeline</h3>
-            <p>Accept DPX, TIFF, EXR, PNG, BMP, JPEG input — auto-encode to JPEG 2000 via grok or OpenJPEG.</p>
+            <p>Accept DPX, TIFF, EXR, PNG, BMP, JPEG input &mdash; auto-encode to JPEG 2000 via grok or OpenJPEG.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(251,191,36,0.15);">🎞️</div>
@@ -325,32 +420,143 @@
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(74,222,128,0.15);">📋</div>
             <h3>Multi-CPL &amp; Supplemental</h3>
-            <p>Create multi-composition IMPs and supplemental versions with segment replacement.</p>
+            <p>Create multi-composition IMPs and supplemental versions with segment replacement workflows.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(251,113,133,0.15);">📝</div>
-            <h3>TTML Subtitles</h3>
-            <p>Package TTML / IMSC subtitles as AS-02 timed text MXF track files.</p>
+            <h3>TTML Subtitles &amp; Captions</h3>
+            <p>Package TTML / IMSC subtitles as AS-02 timed text MXF. Convert SCC and SRT to TTML.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(56,189,248,0.15);">🎥</div>
-            <h3>Dolby Vision 4.0</h3>
-            <p>Inject Dolby Vision RPU metadata for HDR IMF packaging using dovi_tool.</p>
+            <h3>Dolby Vision &amp; HDR10+</h3>
+            <p>Inject Dolby Vision RPU and HDR10+ dynamic metadata for HDR IMF packaging.</p>
         </div>
         <div class="feature-card">
-            <div class="feature-icon" style="background: rgba(167,139,250,0.15);">✅</div>
+            <div class="feature-icon" style="background: rgba(167,139,250,0.15);">🎨</div>
+            <h3>ACES (App#5) Colour</h3>
+            <p>BT.709, BT.2020 PQ/HLG, P3-D65, and ACES colour spaces with proper metadata signaling.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(251,191,36,0.15);">📊</div>
+            <h3>Loudness Analysis</h3>
+            <p>EBU R128 and ATSC A/85 loudness measurement with compliance badges and normalization.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(74,222,128,0.15);">✅</div>
             <h3>Photon Validation</h3>
-            <p>Validate output IMPs using Netflix Photon for SMPTE conformance checking.</p>
+            <p>Validate output IMPs using Netflix Photon for SMPTE conformance checking and error reporting.</p>
         </div>
         <div class="feature-card">
-            <div class="feature-icon" style="background: rgba(251,191,36,0.15);">🔐</div>
+            <div class="feature-icon" style="background: rgba(56,189,248,0.15);">⚡</div>
+            <h3>Delivery Presets</h3>
+            <p>One-click configuration for Netflix, Disney+, Amazon, Apple TV+, Cinema 2K/4K, Broadcast, Archival.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(251,113,133,0.15);">🔐</div>
             <h3>Hash &amp; Signing</h3>
             <p>SHA-1 hash computation for all assets with optional XML-DSIG signing for secure delivery.</p>
         </div>
         <div class="feature-card">
-            <div class="feature-icon" style="background: rgba(74,222,128,0.15);">🖥️</div>
-            <h3>Desktop GUI &amp; CLI</h3>
-            <p>Tauri desktop app with drag-and-drop import, plus high-performance C++23 CLI for scripting.</p>
+            <div class="feature-icon" style="background: rgba(167,139,250,0.15);">🖥️</div>
+            <h3>Desktop GUI</h3>
+            <p>Tauri 2 desktop app with dark theme, drag-and-drop, timeline editor, metadata editor, and job queue.</p>
+        </div>
+    </div>
+</section>
+
+<section class="section" id="install">
+    <h2 class="section-title">Installation</h2>
+    <p class="section-subtitle">Build from source in minutes. Requires a C++23 compiler and CMake.</p>
+
+    <h3 style="color: var(--text-primary); margin-bottom: 1rem;">Prerequisites</h3>
+    <div class="prereqs-list">
+        <div class="prereq"><span class="tag required">Required</span><span>C++23 compiler (GCC 13+, Clang 16+)</span></div>
+        <div class="prereq"><span class="tag required">Required</span><span>CMake 3.25+</span></div>
+        <div class="prereq"><span class="tag required">Required</span><span>libxml2, OpenSSL, Xerces-C++</span></div>
+        <div class="prereq"><span class="tag optional">Optional</span><span>grok or OpenJPEG (J2K encode)</span></div>
+        <div class="prereq"><span class="tag optional">Optional</span><span>ffmpeg / ffprobe (transcode, loudness)</span></div>
+        <div class="prereq"><span class="tag optional">Optional</span><span>Java + Netflix Photon (validation)</span></div>
+        <div class="prereq"><span class="tag optional">Optional</span><span>Node.js + Rust (GUI build)</span></div>
+    </div>
+
+    <h3 style="color: var(--text-primary); margin: 2rem 0 1rem;">Build Steps</h3>
+    <div class="install-steps">
+        <div class="install-step">
+            <div class="step-num">1</div>
+            <h4>Clone</h4>
+            <p><code>git clone --recurse-submodules https://github.com/DcpDoctor/imfwizard.git</code></p>
+        </div>
+        <div class="install-step">
+            <div class="step-num">2</div>
+            <h4>Build CLI</h4>
+            <p><code>cd imfwizard && mkdir build && cd build && cmake .. && make -j$(nproc)</code></p>
+        </div>
+        <div class="install-step">
+            <div class="step-num">3</div>
+            <h4>Run Tests</h4>
+            <p><code>ctest</code> in the build directory to verify everything works.</p>
+        </div>
+        <div class="install-step">
+            <div class="step-num">4</div>
+            <h4>GUI (Optional)</h4>
+            <p><code>cd gui && npm install && npm run tauri dev</code></p>
+        </div>
+    </div>
+</section>
+
+<section class="section" id="gui">
+    <h2 class="section-title">Desktop GUI</h2>
+    <p class="section-subtitle">Full-featured Tauri 2 desktop application with dark theme.</p>
+
+    <div class="gui-features">
+        <div class="gui-feature">
+            <h4>🌙 Dark Theme</h4>
+            <p>Native dark mode with optional light theme toggle. Properly styled on Linux/WebKitGTK.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>📂 Drag &amp; Drop</h4>
+            <p>Drop WAV, TTML, or image sequence files directly onto the app to import them.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>🎬 Timeline Editor</h4>
+            <p>Visual segment arrangement for video, audio, and subtitle tracks with drag positioning.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>📊 Loudness Meter</h4>
+            <p>EBU R128 / ATSC A/85 compliance measurement with pass/fail indicators.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>📝 Metadata Editor</h4>
+            <p>Edit CPL annotations, content versioning, locale, and content kind for existing IMPs.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>⚡ Presets</h4>
+            <p>Netflix, Disney+, Amazon, Apple TV+, Cinema, Broadcast, and Archival delivery presets.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>🔔 Notifications</h4>
+            <p>System notifications when long-running jobs (encode, validate, create) complete.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>📋 Job Queue</h4>
+            <p>Background daemon for batch processing. Submit, monitor, and cancel jobs from the GUI.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>🕐 Recent Projects</h4>
+            <p>Quick access to the last 8 IMPs you created or validated.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>🎥 Preview Player</h4>
+            <p>Frame-by-frame J2K playback with scrub bar and waveform display.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>🔀 Supplemental</h4>
+            <p>Guided workflow for creating versioned supplemental IMPs with segment replacement.</p>
+        </div>
+        <div class="gui-feature">
+            <h4>✅ Validation</h4>
+            <p>One-click Netflix Photon validation with detailed error reporting in the GUI.</p>
         </div>
     </div>
 </section>
@@ -361,25 +567,28 @@
 
     <div class="code-block">
         <code>
-<span class="cmd">$</span> git clone <span class="flag">--recurse-submodules</span> <span class="val">https://github.com/DcpDoctor/imfwizard.git</span><br>
-<span class="cmd">$</span> cd imfwizard && mkdir build && cd build<br>
-<span class="cmd">$</span> cmake .. <span class="flag">-DCMAKE_BUILD_TYPE=Release</span><br>
-<span class="cmd">$</span> make <span class="flag">-j$(nproc)</span><br>
-<br>
-<span style="color:var(--text-tertiary)"># Create IMP from J2K + WAV</span><br>
+<span class="comment"># Create IMP from J2K + WAV</span><br>
 <span class="cmd">$</span> ./imfwizard create \<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--title</span> <span class="val">"My Feature Film"</span> \<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--video</span> <span class="val">/path/to/j2k_frames/</span> \<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--audio</span> <span class="val">/path/to/audio.wav</span> \<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--output</span> <span class="val">/path/to/output_imp/</span><br>
 <br>
-<span style="color:var(--text-tertiary)"># Create IMP from DPX/TIFF (auto-encodes to J2K)</span><br>
-<span class="cmd">$</span> ./imfwizard create <span class="flag">--title</span> <span class="val">"My Film"</span> <span class="flag">--video</span> <span class="val">/path/to/dpx/</span> <span class="flag">--audio</span> <span class="val">audio.wav</span> <span class="flag">-o</span> <span class="val">out/</span><br>
+<span class="comment"># Create IMP with subtitles and HDR (auto-encodes DPX to J2K)</span><br>
+<span class="cmd">$</span> ./imfwizard create \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--title</span> <span class="val">"My HDR Film"</span> \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--video</span> <span class="val">/path/to/dpx_frames/</span> \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--subtitle</span> <span class="val">/path/to/subs.ttml</span> \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--color-space</span> <span class="val">bt2020-pq</span> \<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="flag">--output</span> <span class="val">/path/to/output/</span><br>
 <br>
-<span style="color:var(--text-tertiary)"># Transcode ProRes to image sequence</span><br>
-<span class="cmd">$</span> ./imfwizard transcode <span class="flag">-i</span> <span class="val">input.mov</span> <span class="flag">-o</span> <span class="val">/path/to/frames/</span> <span class="flag">-f</span> <span class="val">tiff</span><br>
+<span class="comment"># Use a delivery preset</span><br>
+<span class="cmd">$</span> ./imfwizard create <span class="flag">--preset</span> <span class="val">netflix</span> <span class="flag">--video</span> <span class="val">frames/</span> <span class="flag">--audio</span> <span class="val">audio.wav</span> <span class="flag">-o</span> <span class="val">out/</span><br>
 <br>
-<span style="color:var(--text-tertiary)"># Validate an IMP with Netflix Photon</span><br>
+<span class="comment"># Measure loudness</span><br>
+<span class="cmd">$</span> ./imfwizard loudness <span class="val">/path/to/audio.wav</span><br>
+<br>
+<span class="comment"># Validate with Netflix Photon</span><br>
 <span class="cmd">$</span> ./imfwizard validate <span class="val">/path/to/imp/</span>
         </code>
     </div>
@@ -387,7 +596,7 @@
 
 <section class="section" id="roadmap">
     <h2 class="section-title">Capabilities</h2>
-    <p class="section-subtitle">Comprehensive IMF workflow — from raw footage to validated delivery.</p>
+    <p class="section-subtitle">Comprehensive IMF workflow &mdash; from raw footage to validated delivery.</p>
 
     <div class="roadmap">
         <div class="roadmap-item active">
@@ -401,14 +610,24 @@
             <p>OV &amp; Supplemental IMPs, multi-CPL, TTML subtitles, XML signing, SHA-1 hashing.</p>
         </div>
         <div class="roadmap-item active">
-            <div class="phase">HDR</div>
-            <h4>Dolby Vision 4.0</h4>
-            <p>RPU metadata injection for Dolby Vision HDR IMF packages via dovi_tool.</p>
+            <div class="phase">Colour</div>
+            <h4>HDR &amp; ACES</h4>
+            <p>Dolby Vision 4.0, HDR10+, BT.2020 PQ/HLG, P3-D65, ACES App#5 colour management.</p>
         </div>
         <div class="roadmap-item active">
             <div class="phase">QC</div>
-            <h4>Photon Validation</h4>
-            <p>Validate IMPs against SMPTE standards using Netflix Photon. Detailed error reporting.</p>
+            <h4>Validation &amp; Metrics</h4>
+            <p>Netflix Photon, loudness metering, VMAF/PSNR/SSIM, bitrate analysis, QC reports.</p>
+        </div>
+        <div class="roadmap-item active">
+            <div class="phase">Workflow</div>
+            <h4>Automation</h4>
+            <p>Job queue daemon, watch folder, delivery presets, EDL/AAF conform, S3 upload.</p>
+        </div>
+        <div class="roadmap-item active">
+            <div class="phase">GUI</div>
+            <h4>Desktop App</h4>
+            <p>Tauri 2 GUI with dark theme, drag-drop, timeline, metadata editor, notifications.</p>
         </div>
     </div>
 </section>

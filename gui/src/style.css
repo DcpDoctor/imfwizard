@@ -494,3 +494,165 @@ body.light-theme .field select option {
 .btn-secondary:hover {
   background: var(--primary);
 }
+
+/* === Drop overlay === */
+.drop-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.drop-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem;
+  border: 2px dashed var(--accent);
+  border-radius: 16px;
+  color: var(--text);
+  font-size: 1.2rem;
+}
+
+.drop-icon {
+  font-size: 3rem;
+}
+
+/* === Recent projects bar === */
+.recent-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.recent-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.recent-list {
+  display: flex;
+  gap: 6px;
+}
+
+.recent-item {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.recent-item:hover {
+  background: var(--primary);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* === Field hint text === */
+.field-hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+/* === Loudness results === */
+.results-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.result-row:last-child {
+  border-bottom: none;
+}
+
+.result-label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.compliance-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.compliance-badge.pass {
+  background: rgba(63, 185, 80, 0.15);
+  color: #3fb950;
+}
+
+.compliance-badge.fail {
+  background: rgba(248, 81, 73, 0.15);
+  color: #f85149;
+}
+
+/* === Info display === */
+.info-display {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.75rem;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+  color: var(--text-muted);
+}
+
+/* === Output log box (reusable) === */
+.output-log-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1rem;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* === Nav tabs scrolling for many tabs === */
+.nav-tabs {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.nav-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.nav-tabs::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}

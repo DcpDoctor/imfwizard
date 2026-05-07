@@ -9,36 +9,56 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 
 ## Features
 
+### Packaging & Wrapping
 - **Original Version IMP creation** from J2K + WAV
 - **Supplemental IMP** creation with segment replacement
 - **Multi-CPL IMP** — multiple compositions sharing a track pool
-- **Image encoding pipeline** — DPX, TIFF, EXR, PNG, BMP, JPEG → JPEG 2000 (via grok or OpenJPEG)
-- **ProRes / DNxHR / H.264 / H.265 transcoding** — video files → image sequence → J2K (via ffmpeg)
 - **TTML / IMSC subtitle** packaging as AS-02 timed text MXF
 - **Closed captions** — SCC (CEA-608) and SRT → TTML conversion
+- **Accessibility tracks** — Audio Description, Hearing Impaired, Sign Language, Commentary
+- **Multi-language audio** with RFC 5646 language tags and MCA labels
+- **AS-02 MXF wrapping** (SMPTE 2067-5), CPL/PKL/AssetMap generation
+- **SHA-1 hashing** and optional **XML-DSIG signing**
+
+### Encoding & Transcoding
+- **Image encoding pipeline** — DPX, TIFF, EXR, PNG, BMP, JPEG → JPEG 2000 (via grok or OpenJPEG)
+- **ProRes / DNxHR / H.264 / H.265 transcoding** — video files → image sequence → J2K (via ffmpeg)
+- **ACES (App#5) colour management** — ACES transforms during encode
+- **Scale / crop / letterbox** options for resolution adaptation
+
+### HDR & Advanced
 - **Dolby Vision 4.0** RPU metadata injection (via dovi_tool)
 - **HDR10+ dynamic metadata** injection (via hdr10plus_tool)
 - **HDR/WCG color metadata** — ST 2067-21 (PQ, HLG, BT.2020, P3-D65)
 - **IAB / Dolby Atmos** immersive audio packaging
-- **Multi-language audio** with RFC 5646 language tags and MCA labels
-- **Audio channel remapping** — downmix 5.1/7.1 to stereo or remap layouts
+
+### Quality Control
 - **Loudness analysis** — EBU R128 / ATSC A/85 measurement and normalization
-- **Accessibility tracks** — Audio Description, Hearing Impaired, Sign Language, Commentary
-- **Delivery profiles** — Netflix, Disney+, Amazon, Apple TV+, Cinema 2K/4K, Broadcast, Archival presets
 - **Photon validation** — validate output IMPs using Netflix Photon
 - **Frame-level QC** — per-frame bitrate analysis with over/under-budget detection
 - **VMAF / PSNR / SSIM** quality metrics (via ffmpeg libvmaf)
-- **QC HTML report** generation with dark-themed styling
-- **Watch folder** — daemon mode for auto-IMP creation
-- **Partial restore** — extract tracks from existing IMPs back to raw files
+- **QC HTML report** generation
+
+### Workflow & Automation
+- **Delivery presets** — Netflix, Disney+, Amazon, Apple TV+, Cinema 2K/4K, Broadcast, Archival
+- **Job queue daemon** — background processing with Unix socket IPC
+- **Watch folder** — auto-IMP creation when files appear
 - **EDL/AAF conform** — import CMX3600 edit decisions to auto-build CPL timelines
 - **S3 cloud upload** — push completed IMPs to AWS S3
-- **Scale / crop / letterbox** options for resolution adaptation
-- AS-02 MXF track file wrapping (SMPTE 2067-5)
-- CPL (ST 2067-3), PKL (ST 429-8), AssetMap (ST 429-9) generation
-- SHA-1 hash computation for all assets
-- Optional XML-DSIG signing
-- Desktop GUI (Tauri 2) with timeline editor
+- **Partial restore** — extract tracks from existing IMPs back to raw files
+
+### Desktop GUI (Tauri 2)
+- **Dark theme** by default with optional light mode toggle
+- **Drag-and-drop** file import (WAV, TTML, image sequences)
+- **Timeline editor** — visual segment arrangement for multi-track compositions
+- **Supplemental IMP wizard** — guided workflow for versioned supplements
+- **Loudness metering panel** — EBU R128 / ATSC A/85 compliance badges
+- **IMP metadata editor** — edit CPL annotations, content versioning, locale info
+- **Delivery preset selector** — one-click configuration for major platforms
+- **Preview player** — J2K frame-by-frame playback with waveform display
+- **Job queue manager** — submit, monitor, cancel background jobs
+- **Progress notifications** — system notifications when jobs complete
+- **Recent projects** — quick access to previously created IMPs
 
 ## Building
 
@@ -76,6 +96,23 @@ cd build
 ctest
 ```
 
+### GUI (Tauri 2)
+
+```bash
+cd gui
+npm install
+npm run tauri dev
+```
+
+To build a release binary:
+
+```bash
+cd gui
+npm run tauri build
+```
+
+The built app will be in `gui/src-tauri/target/release/bundle/`.
+
 ## Usage
 
 ### Create an IMP from J2K + WAV
@@ -87,6 +124,18 @@ imfwizard create \
   --audio /path/to/audio.wav \
   --output /path/to/output_imp/ \
   --fps-num 24 --fps-den 1
+```
+
+### Create an IMP with subtitles and HDR
+
+```bash
+imfwizard create \
+  --title "My HDR Film" \
+  --video /path/to/j2k_frames/ \
+  --audio /path/to/audio.wav \
+  --subtitle /path/to/subs.ttml \
+  --color-space bt2020-pq \
+  --output /path/to/output/
 ```
 
 ### Create an IMP from non-J2K images (auto-encode)
@@ -129,6 +178,12 @@ imfwizard supplement \
   --entry-point 100 --duration 50
 ```
 
+### Measure loudness
+
+```bash
+imfwizard loudness /path/to/audio.wav
+```
+
 ### Validate an IMP
 
 ```bash
@@ -141,14 +196,16 @@ imfwizard validate /path/to/imp/
 imfwizard info /path/to/existing_imp/
 ```
 
-## GUI
-
-The desktop GUI is built with Tauri 2. See `gui/` directory.
+### Delivery presets
 
 ```bash
-cd gui
-npm install
-npm run tauri dev
+# Use a preset to auto-configure encoding parameters
+imfwizard create \
+  --title "Netflix Delivery" \
+  --preset netflix \
+  --video /path/to/dpx_frames/ \
+  --audio /path/to/audio.wav \
+  --output /path/to/output/
 ```
 
 ## Architecture
@@ -157,10 +214,11 @@ npm run tauri dev
 imfwizard/
 ├── include/imfwizard/   # Public headers
 ├── src/                 # Core library + CLI
-├── tests/               # Unit tests
-├── gui/                 # Tauri desktop application
-│   ├── src/             # Frontend (Vite)
-│   └── src-tauri/       # Rust backend
+├── tests/               # Unit + integration tests
+├── gui/                 # Tauri 2 desktop application
+│   ├── src/             # Frontend (Vite + vanilla JS)
+│   └── src-tauri/       # Rust backend (plugin shell)
+├── docs/                # GitHub Pages site
 └── extern/              # Git submodules
     ├── asdcplib/        # AS-DCP + AS-02 MXF (BSD)
     ├── CLI11/           # CLI parsing (BSD)

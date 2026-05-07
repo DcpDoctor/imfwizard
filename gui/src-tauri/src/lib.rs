@@ -7,11 +7,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let main_window = app.get_webview_window("main").unwrap();
             main_window.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { .. } = event {
-                    // Tauri shell plugin kills spawned sidecars automatically on exit
                     std::process::exit(0);
                 }
             });

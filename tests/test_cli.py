@@ -141,6 +141,31 @@ def main():
     check_exit_fail("report no args", "report")
     check_exit_fail("report missing dir", "report", "/nonexistent")
 
+    # Supplement
+    print("\nSupplement:")
+    check_exit_fail("supplement no args", "supplement")
+    check_exit_fail("supplement missing ov", "supplement", "--title", "Sup",
+                    "--video", "/nonexistent", "--output", "/tmp/out")
+    check_output_contains("supplement --help", "options", "supplement", "--help")
+
+    # Metadata
+    print("\nMetadata:")
+    check_output_contains("metadata --help", "options", "metadata", "--help")
+    check_exit_fail("metadata no args", "metadata")
+    check_exit_fail("metadata missing imp", "metadata", "--imp", "/nonexistent")
+
+    # Loudness
+    print("\nLoudness:")
+    check_exit_fail("loudness no args", "loudness")
+    check_exit_fail("loudness nonexistent", "loudness", "/nonexistent.wav")
+    check_output_contains("loudness --help", "options", "loudness", "--help")
+
+    # Color space options in create help
+    print("\nColor/Preset options:")
+    check_output_contains("create help mentions color-space", "color-space", "create", "--help")
+    check_output_contains("create help mentions preset", "preset", "create", "--help")
+    check_output_contains("create help mentions subtitle", "subtitle", "create", "--help")
+
     # Summary
     print(f"\n{'=' * 32}")
     total = PASS + FAIL
