@@ -1,7 +1,7 @@
 // Preview player - decodes J2K frames for playback using CLI sidecar
 import { Command } from '@tauri-apps/plugin-shell';
 import { open } from '@tauri-apps/plugin-dialog';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { readFile, exists } from '@tauri-apps/plugin-fs';
 
 let framePaths = [];
 let currentFrame = 0;
@@ -140,18 +140,33 @@ async function displayFrame(index) {
   drawPlayhead();
 }
 
-function loadImageToCanvas(filePath) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      ctx.drawImage(img, 0, 0);
-      resolve(true);
-    };
-    img.onerror = () => resolve(false);
-    img.src = convertFileSrc(filePath);
-  });
+async function loadImageToCanvas(filePath) {
+  try {
+    const fileExists = await exists(filePath);
+    if (!fileExists) return false;
+
+    const bytes = await readFile(filePath);
+    const blob = new Blob([bytes], { type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        resolve(true);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(false);
+      };
+      img.src = url;
+    });
+  } catch {
+    return false;
+  }
 }
 
 function seekFrame(index) {

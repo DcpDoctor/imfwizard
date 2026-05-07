@@ -28,6 +28,20 @@
     "shell:allow-stdin-write",
     "shell:allow-kill",
     "dialog:allow-open",
-    "notification:default"
+    "notification:default",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        { "path": "/tmp/**" },
+        { "path": "$TEMP/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        { "path": "/tmp/**" },
+        { "path": "$TEMP/**" }
+      ]
+    }
   ]
 }
