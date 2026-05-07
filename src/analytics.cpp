@@ -13,11 +13,13 @@ namespace imfwizard
 static std::vector<std::filesystem::path> list_j2k_files(const std::filesystem::path& dir)
 {
   std::vector<std::filesystem::path> files;
-  if(!std::filesystem::is_directory(dir)) return files;
+  if(!std::filesystem::is_directory(dir))
+    return files;
 
   for(auto& entry : std::filesystem::directory_iterator(dir))
   {
-    if(!entry.is_regular_file()) continue;
+    if(!entry.is_regular_file())
+      continue;
     auto ext = entry.path().extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
     if(ext == ".j2c" || ext == ".j2k" || ext == ".jp2")
@@ -31,13 +33,15 @@ static std::vector<std::filesystem::path> list_j2k_files(const std::filesystem::
 static void parse_j2k_header(const std::filesystem::path& file, FrameAnalytics& fa)
 {
   std::ifstream f(file, std::ios::binary);
-  if(!f) return;
+  if(!f)
+    return;
 
   // Read first 256 bytes (enough for SIZ + COD markers)
   std::vector<uint8_t> header(256);
   f.read(reinterpret_cast<char*>(header.data()), header.size());
   auto bytes_read = f.gcount();
-  if(bytes_read < 10) return;
+  if(bytes_read < 10)
+    return;
 
   // Look for SIZ marker (0xFF51) for tile info
   for(size_t i = 0; i + 1 < static_cast<size_t>(bytes_read); ++i)
@@ -50,12 +54,11 @@ static void parse_j2k_header(const std::filesystem::path& file, FrameAnalytics& 
       if(xt > 0 && yt > 0)
       {
         // Compute tile count from image size and tile size
-        uint32_t xsiz = (header[i + 6] << 24) | (header[i + 7] << 16) |
-                        (header[i + 8] << 8) | header[i + 9];
-        uint32_t ysiz = (header[i + 10] << 24) | (header[i + 11] << 16) |
-                        (header[i + 12] << 8) | header[i + 13];
-        fa.tile_count = static_cast<uint16_t>(
-            ((xsiz + xt - 1) / xt) * ((ysiz + yt - 1) / yt));
+        uint32_t xsiz =
+            (header[i + 6] << 24) | (header[i + 7] << 16) | (header[i + 8] << 8) | header[i + 9];
+        uint32_t ysiz = (header[i + 10] << 24) | (header[i + 11] << 16) | (header[i + 12] << 8) |
+                        header[i + 13];
+        fa.tile_count = static_cast<uint16_t>(((xsiz + xt - 1) / xt) * ((ysiz + yt - 1) / yt));
       }
       break;
     }
@@ -116,8 +119,8 @@ AnalyticsResult compute_analytics(const AnalyticsOptions& opts)
   }
 
   result.avg_bitrate_mbps = sum / result.total_frames;
-  double variance = (sum_sq / result.total_frames) -
-                    (result.avg_bitrate_mbps * result.avg_bitrate_mbps);
+  double variance =
+      (sum_sq / result.total_frames) - (result.avg_bitrate_mbps * result.avg_bitrate_mbps);
   result.stddev_bitrate_mbps = variance > 0 ? std::sqrt(variance) : 0;
 
   // Build histogram (10 buckets)
@@ -130,15 +133,18 @@ AnalyticsResult compute_analytics(const AnalyticsOptions& opts)
     for(auto& fa : result.frames)
     {
       int bucket = static_cast<int>((fa.bitrate_mbps - result.histogram_min) / bucket_width);
-      if(bucket >= 10) bucket = 9;
-      if(bucket < 0) bucket = 0;
+      if(bucket >= 10)
+        bucket = 9;
+      if(bucket < 0)
+        bucket = 0;
       result.bitrate_histogram[bucket]++;
     }
   }
 
   // Per-second averages
   uint32_t frames_per_sec = static_cast<uint32_t>(fps);
-  if(frames_per_sec == 0) frames_per_sec = 1;
+  if(frames_per_sec == 0)
+    frames_per_sec = 1;
   for(uint32_t s = 0; s * frames_per_sec < result.total_frames; ++s)
   {
     double sec_sum = 0;
@@ -171,7 +177,8 @@ std::string analytics_to_json(const AnalyticsResult& result)
   ss << "  \"histogram\": [";
   for(size_t i = 0; i < result.bitrate_histogram.size(); ++i)
   {
-    if(i > 0) ss << ", ";
+    if(i > 0)
+      ss << ", ";
     ss << result.bitrate_histogram[i];
   }
   ss << "],\n";
@@ -181,7 +188,8 @@ std::string analytics_to_json(const AnalyticsResult& result)
   ss << "  \"per_second_bitrate\": [";
   for(size_t i = 0; i < result.per_second_bitrate.size(); ++i)
   {
-    if(i > 0) ss << ", ";
+    if(i > 0)
+      ss << ", ";
     ss << result.per_second_bitrate[i];
   }
   ss << "],\n";
@@ -195,7 +203,8 @@ std::string analytics_to_json(const AnalyticsResult& result)
   bool first = true;
   for(uint32_t i = 0; i < result.total_frames; i += step)
   {
-    if(!first) ss << ", ";
+    if(!first)
+      ss << ", ";
     ss << result.frames[i].bitrate_mbps;
     first = false;
   }

@@ -31,7 +31,8 @@ static std::vector<std::filesystem::path> list_j2k_files(const std::filesystem::
 
   for(auto& entry : std::filesystem::directory_iterator(dir))
   {
-    if(!entry.is_regular_file()) continue;
+    if(!entry.is_regular_file())
+      continue;
     auto ext = entry.path().extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
     if(ext == ".j2c" || ext == ".j2k" || ext == ".jp2")
@@ -100,8 +101,8 @@ PreviewResult decode_preview_frame(const PreviewOptions& opts)
   {
     auto thumb_file = out_dir / ("thumb_" + std::to_string(opts.frame) + ".png");
     std::string resize_cmd = cmd + " 2>/dev/null && ffmpeg -y -i \"" + output_file.string() +
-                             "\" -vf scale=" + std::to_string(opts.thumbnail_width) +
-                             ":-1 \"" + thumb_file.string() + "\" 2>/dev/null";
+                             "\" -vf scale=" + std::to_string(opts.thumbnail_width) + ":-1 \"" +
+                             thumb_file.string() + "\" 2>/dev/null";
     if(system(resize_cmd.c_str()) == 0)
     {
       result.frame.thumbnail_path = thumb_file.string();

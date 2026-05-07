@@ -63,8 +63,12 @@ int main(int argc, char* argv[])
   create_cmd->add_option("--fps-den", fps_den, "Edit rate denominator")->default_val(1);
   create_cmd->add_option("--sample-rate", sample_rate, "Audio sample rate")->default_val(48000);
   create_cmd->add_option("--bit-depth", bit_depth, "Audio bit depth")->default_val(24);
-  create_cmd->add_option("--color-space", color_space, "Color space (BT.709, BT.2020, P3-D65, ACES)")->default_val("BT.709");
-  create_cmd->add_option("--preset", preset, "Delivery preset (netflix, disney, amazon, apple, cinema2k, cinema4k, broadcast, archival)");
+  create_cmd
+      ->add_option("--color-space", color_space, "Color space (BT.709, BT.2020, P3-D65, ACES)")
+      ->default_val("BT.709");
+  create_cmd->add_option(
+      "--preset", preset,
+      "Delivery preset (netflix, disney, amazon, apple, cinema2k, cinema4k, broadcast, archival)");
   create_cmd->add_option("--cert", cert_file, "X.509 certificate for signing");
   create_cmd->add_option("--key", key_file, "Private key for signing");
   create_cmd->add_option("-s,--subtitle", subtitle_file, "TTML/IMSC subtitle file")
@@ -252,7 +256,10 @@ int main(int argc, char* argv[])
   std::string batch_type, batch_desc;
   std::vector<std::string> batch_args;
   uint64_t batch_dep = 0;
-  batch_add_cmd->add_option("-T,--type", batch_type, "Job type (transcode/encode/create/validate/loudness/qc)")->required();
+  batch_add_cmd
+      ->add_option("-T,--type", batch_type,
+                   "Job type (transcode/encode/create/validate/loudness/qc)")
+      ->required();
   batch_add_cmd->add_option("-d,--description", batch_desc, "Job description")->required();
   batch_add_cmd->add_option("--depends-on", batch_dep, "Depend on job ID");
   batch_add_cmd->add_option("args", batch_args, "Arguments to pass to imfwizard");
@@ -268,7 +275,8 @@ int main(int argc, char* argv[])
   uint64_t batch_pri_id = 0;
   int batch_pri_val = 0;
   batch_priority_cmd->add_option("id", batch_pri_id, "Job ID")->required();
-  batch_priority_cmd->add_option("priority", batch_pri_val, "Priority (higher = first)")->required();
+  batch_priority_cmd->add_option("priority", batch_pri_val, "Priority (higher = first)")
+      ->required();
 
   // === DAEMON subcommand ===
   auto* daemon_cmd = app.add_subcommand("daemon", "Run the job queue daemon");
@@ -282,14 +290,17 @@ int main(int argc, char* argv[])
   preview_cmd->add_option("-o,--output", prev_output, "Output directory")->required();
   preview_cmd->add_option("-f,--frame", prev_frame, "Frame number to preview")->default_val(0);
   preview_cmd->add_option("-w,--width", prev_width, "Thumbnail width")->default_val(320);
-  preview_cmd->add_option("-n,--count", prev_count, "Number of thumbnails for strip")->default_val(10);
+  preview_cmd->add_option("-n,--count", prev_count, "Number of thumbnails for strip")
+      ->default_val(10);
   preview_cmd->add_flag("--strip", prev_strip, "Generate thumbnail strip (multiple frames)");
 
   // === PRORES subcommand ===
   auto* prores_cmd = app.add_subcommand("prores", "Create IMF package from ProRes input");
   std::string pr_input, pr_output, pr_title, pr_issuer = "IMF Wizard";
   uint32_t pr_fps_num = 24, pr_fps_den = 1;
-  prores_cmd->add_option("-i,--input", pr_input, "ProRes .mov file")->required()->check(CLI::ExistingFile);
+  prores_cmd->add_option("-i,--input", pr_input, "ProRes .mov file")
+      ->required()
+      ->check(CLI::ExistingFile);
   prores_cmd->add_option("-o,--output", pr_output, "Output IMP directory")->required();
   prores_cmd->add_option("-t,--title", pr_title, "Content title")->required();
   prores_cmd->add_option("--issuer", pr_issuer, "Issuer name")->default_val("IMF Wizard");
@@ -301,8 +312,12 @@ int main(int argc, char* argv[])
   std::string bi_video, bi_subs, bi_output, bi_font = "DejaVu Sans";
   uint16_t bi_fontsize = 48;
   uint32_t bi_threads = 0;
-  burnin_cmd->add_option("-i,--input", bi_video, "Input video file")->required()->check(CLI::ExistingFile);
-  burnin_cmd->add_option("-s,--subtitles", bi_subs, "Subtitle file (SRT/TTML/SCC)")->required()->check(CLI::ExistingFile);
+  burnin_cmd->add_option("-i,--input", bi_video, "Input video file")
+      ->required()
+      ->check(CLI::ExistingFile);
+  burnin_cmd->add_option("-s,--subtitles", bi_subs, "Subtitle file (SRT/TTML/SCC)")
+      ->required()
+      ->check(CLI::ExistingFile);
   burnin_cmd->add_option("-o,--output", bi_output, "Output video file")->required();
   burnin_cmd->add_option("--font", bi_font, "Font family")->default_val("DejaVu Sans");
   burnin_cmd->add_option("--font-size", bi_fontsize, "Font size")->default_val(48);
@@ -311,7 +326,9 @@ int main(int argc, char* argv[])
   // === TO-DCP subcommand ===
   auto* todcp_cmd = app.add_subcommand("to-dcp", "Convert IMF package to DCP");
   std::string dcp_imp, dcp_output, dcp_title, dcp_kind = "feature";
-  todcp_cmd->add_option("-i,--imp", dcp_imp, "Input IMP directory")->required()->check(CLI::ExistingDirectory);
+  todcp_cmd->add_option("-i,--imp", dcp_imp, "Input IMP directory")
+      ->required()
+      ->check(CLI::ExistingDirectory);
   todcp_cmd->add_option("-o,--output", dcp_output, "Output DCP directory")->required();
   todcp_cmd->add_option("-t,--title", dcp_title, "DCP content title");
   todcp_cmd->add_option("-k,--kind", dcp_kind, "Content kind")->default_val("feature");
@@ -326,13 +343,17 @@ int main(int argc, char* argv[])
   deliver_cmd->add_option("-s,--subtitle", del_subtitle, "Subtitle file");
   deliver_cmd->add_option("-t,--title", del_title, "Content title")->required();
   deliver_cmd->add_option("-o,--output", del_output_base, "Output base directory")->required();
-  deliver_cmd->add_option("--targets", del_targets, "Delivery targets (netflix,disney,amazon,apple,cinema,broadcast,archival)")->required();
+  deliver_cmd
+      ->add_option("--targets", del_targets,
+                   "Delivery targets (netflix,disney,amazon,apple,cinema,broadcast,archival)")
+      ->required();
   deliver_cmd->add_option("--fps-num", del_fps_num, "Frame rate numerator")->default_val(24);
   deliver_cmd->add_option("--fps-den", del_fps_den, "Frame rate denominator")->default_val(1);
   deliver_cmd->add_option("--threads", del_threads, "Threads (0=auto)")->default_val(0);
 
   // === ANALYTICS subcommand ===
-  auto* analytics_cmd = app.add_subcommand("analytics", "Generate bitrate analytics for J2K stream");
+  auto* analytics_cmd =
+      app.add_subcommand("analytics", "Generate bitrate analytics for J2K stream");
   std::string an_dir, an_output;
   uint32_t an_fps_num = 24, an_fps_den = 1;
   bool an_json = false;
@@ -788,10 +809,9 @@ int main(int argc, char* argv[])
       for(auto& j : jobs)
       {
         char line[256];
-        snprintf(line, sizeof(line), "%-3" PRIu64 " %-10s %5.0f%%    %-10s %s\n",
-                 j.id, imfwizard::job_state_to_string(j.state).c_str(),
-                 j.progress, imfwizard::job_type_to_string(j.type).c_str(),
-                 j.description.c_str());
+        snprintf(line, sizeof(line), "%-3" PRIu64 " %-10s %5.0f%%    %-10s %s\n", j.id,
+                 imfwizard::job_state_to_string(j.state).c_str(), j.progress,
+                 imfwizard::job_type_to_string(j.type).c_str(), j.description.c_str());
         std::cout << line;
       }
       return 0;
@@ -805,9 +825,10 @@ int main(int argc, char* argv[])
         return 1;
       }
       std::optional<uint64_t> dep;
-      if(batch_dep > 0) dep = batch_dep;
-      auto id = client.submit(imfwizard::job_type_from_string(batch_type),
-                              batch_desc, batch_args, dep);
+      if(batch_dep > 0)
+        dep = batch_dep;
+      auto id =
+          client.submit(imfwizard::job_type_from_string(batch_type), batch_desc, batch_args, dep);
       if(id)
         std::cout << "Job " << *id << " submitted\n";
       else
@@ -835,8 +856,8 @@ int main(int argc, char* argv[])
       auto job = client.status(batch_status_id);
       if(job)
       {
-        std::cout << "Job " << job->id << ": " << imfwizard::job_state_to_string(job->state)
-                  << " (" << job->progress << "%) — " << job->description << "\n";
+        std::cout << "Job " << job->id << ": " << imfwizard::job_state_to_string(job->state) << " ("
+                  << job->progress << "%) — " << job->description << "\n";
         if(!job->error.empty())
           std::cout << "  Error: " << job->error << "\n";
       }
@@ -900,8 +921,8 @@ int main(int argc, char* argv[])
         spdlog::error("{}", r.error);
         return 1;
       }
-      std::cout << "Generated " << r.thumbnails.size() << " thumbnails from "
-                << r.total_frames << " frames\n";
+      std::cout << "Generated " << r.thumbnails.size() << " thumbnails from " << r.total_frames
+                << " frames\n";
     }
     else
     {

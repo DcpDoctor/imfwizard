@@ -33,11 +33,14 @@ static bool has_ffmpeg()
 
 bool is_prores_file(const std::filesystem::path& file)
 {
-  if(!has_ffprobe()) return false;
-  std::string cmd = "ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 \"" +
-                    file.string() + "\" 2>/dev/null";
+  if(!has_ffprobe())
+    return false;
+  std::string cmd =
+      "ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 \"" +
+      file.string() + "\" 2>/dev/null";
   FILE* pipe = portable_popen(cmd.c_str(), "r");
-  if(!pipe) return false;
+  if(!pipe)
+    return false;
   char buf[128];
   std::string result;
   while(fgets(buf, sizeof(buf), pipe))
@@ -51,11 +54,14 @@ bool is_prores_file(const std::filesystem::path& file)
 
 ProResProfile detect_prores_profile(const std::filesystem::path& file)
 {
-  if(!has_ffprobe()) return ProResProfile::HQ;
-  std::string cmd = "ffprobe -v error -select_streams v:0 -show_entries stream=profile -of csv=p=0 \"" +
-                    file.string() + "\" 2>/dev/null";
+  if(!has_ffprobe())
+    return ProResProfile::HQ;
+  std::string cmd =
+      "ffprobe -v error -select_streams v:0 -show_entries stream=profile -of csv=p=0 \"" +
+      file.string() + "\" 2>/dev/null";
   FILE* pipe = portable_popen(cmd.c_str(), "r");
-  if(!pipe) return ProResProfile::HQ;
+  if(!pipe)
+    return ProResProfile::HQ;
   char buf[128];
   std::string result;
   while(fgets(buf, sizeof(buf), pipe))
@@ -64,9 +70,12 @@ ProResProfile detect_prores_profile(const std::filesystem::path& file)
   while(!result.empty() && (result.back() == '\n' || result.back() == '\r'))
     result.pop_back();
 
-  if(result.find("Proxy") != std::string::npos) return ProResProfile::Proxy;
-  if(result.find("LT") != std::string::npos) return ProResProfile::LT;
-  if(result.find("Standard") != std::string::npos) return ProResProfile::Standard;
+  if(result.find("Proxy") != std::string::npos)
+    return ProResProfile::Proxy;
+  if(result.find("LT") != std::string::npos)
+    return ProResProfile::LT;
+  if(result.find("Standard") != std::string::npos)
+    return ProResProfile::Standard;
   if(result.find("XQ") != std::string::npos || result.find("4444 XQ") != std::string::npos)
     return ProResProfile::XQ;
   return ProResProfile::HQ;
@@ -94,8 +103,8 @@ ProResImpResult create_prores_imp(const ProResImpOptions& opts)
   auto video_uuid = generate_uuid();
   auto video_mxf = opts.output_dir / (video_uuid + ".mxf");
 
-  std::string cmd = "ffmpeg -y -i \"" + opts.input_file.string() +
-                    "\" -c:v copy -f mxf \"" + video_mxf.string() + "\" 2>/dev/null";
+  std::string cmd = "ffmpeg -y -i \"" + opts.input_file.string() + "\" -c:v copy -f mxf \"" +
+                    video_mxf.string() + "\" 2>/dev/null";
   if(system(cmd.c_str()) != 0)
   {
     result.error = "Failed to wrap ProRes essence to MXF";
@@ -120,8 +129,9 @@ ProResImpResult create_prores_imp(const ProResImpOptions& opts)
   // Extract audio if present
   std::string audio_uuid;
   std::filesystem::path audio_mxf;
-  std::string audio_check = "ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 \"" +
-                            opts.input_file.string() + "\" 2>/dev/null";
+  std::string audio_check =
+      "ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 \"" +
+      opts.input_file.string() + "\" 2>/dev/null";
   pipe = portable_popen(audio_check.c_str(), "r");
   bool has_audio = false;
   if(pipe)
@@ -137,10 +147,10 @@ ProResImpResult create_prores_imp(const ProResImpOptions& opts)
   {
     audio_uuid = generate_uuid();
     audio_mxf = opts.output_dir / (audio_uuid + ".mxf");
-    std::string acmd = "ffmpeg -y -i \"" + opts.input_file.string() +
-                       "\" -vn -c:a pcm_s" + std::to_string(opts.audio_bit_depth) +
-                       "le -ar " + std::to_string(opts.sample_rate) +
-                       " -f mxf \"" + audio_mxf.string() + "\" 2>/dev/null";
+    std::string acmd = "ffmpeg -y -i \"" + opts.input_file.string() + "\" -vn -c:a pcm_s" +
+                       std::to_string(opts.audio_bit_depth) + "le -ar " +
+                       std::to_string(opts.sample_rate) + " -f mxf \"" + audio_mxf.string() +
+                       "\" 2>/dev/null";
     system(acmd.c_str());
   }
 

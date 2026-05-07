@@ -28,24 +28,36 @@ std::string job_type_to_string(JobType type)
 {
   switch(type)
   {
-  case JobType::Transcode: return "transcode";
-  case JobType::Encode:    return "encode";
-  case JobType::Create:    return "create";
-  case JobType::Validate:  return "validate";
-  case JobType::Loudness:  return "loudness";
-  case JobType::QC:        return "qc";
+    case JobType::Transcode:
+      return "transcode";
+    case JobType::Encode:
+      return "encode";
+    case JobType::Create:
+      return "create";
+    case JobType::Validate:
+      return "validate";
+    case JobType::Loudness:
+      return "loudness";
+    case JobType::QC:
+      return "qc";
   }
   return "unknown";
 }
 
 JobType job_type_from_string(const std::string& s)
 {
-  if(s == "transcode") return JobType::Transcode;
-  if(s == "encode")    return JobType::Encode;
-  if(s == "create")    return JobType::Create;
-  if(s == "validate")  return JobType::Validate;
-  if(s == "loudness")  return JobType::Loudness;
-  if(s == "qc")        return JobType::QC;
+  if(s == "transcode")
+    return JobType::Transcode;
+  if(s == "encode")
+    return JobType::Encode;
+  if(s == "create")
+    return JobType::Create;
+  if(s == "validate")
+    return JobType::Validate;
+  if(s == "loudness")
+    return JobType::Loudness;
+  if(s == "qc")
+    return JobType::QC;
   return JobType::Transcode;
 }
 
@@ -53,22 +65,32 @@ std::string job_state_to_string(JobState state)
 {
   switch(state)
   {
-  case JobState::Queued:    return "queued";
-  case JobState::Running:   return "running";
-  case JobState::Completed: return "completed";
-  case JobState::Failed:    return "failed";
-  case JobState::Cancelled: return "cancelled";
+    case JobState::Queued:
+      return "queued";
+    case JobState::Running:
+      return "running";
+    case JobState::Completed:
+      return "completed";
+    case JobState::Failed:
+      return "failed";
+    case JobState::Cancelled:
+      return "cancelled";
   }
   return "unknown";
 }
 
 JobState job_state_from_string(const std::string& s)
 {
-  if(s == "queued")    return JobState::Queued;
-  if(s == "running")   return JobState::Running;
-  if(s == "completed") return JobState::Completed;
-  if(s == "failed")    return JobState::Failed;
-  if(s == "cancelled") return JobState::Cancelled;
+  if(s == "queued")
+    return JobState::Queued;
+  if(s == "running")
+    return JobState::Running;
+  if(s == "completed")
+    return JobState::Completed;
+  if(s == "failed")
+    return JobState::Failed;
+  if(s == "cancelled")
+    return JobState::Cancelled;
   return JobState::Queued;
 }
 
@@ -76,11 +98,13 @@ std::filesystem::path jobs_file_path()
 {
 #ifdef _WIN32
   const char* appdata = std::getenv("LOCALAPPDATA");
-  if(!appdata) appdata = "C:\\Temp";
+  if(!appdata)
+    appdata = "C:\\Temp";
   auto dir = std::filesystem::path(appdata) / "imfwizard";
 #else
   const char* home = std::getenv("HOME");
-  if(!home) home = "/tmp";
+  if(!home)
+    home = "/tmp";
   auto dir = std::filesystem::path(home) / ".config" / "imfwizard";
 #endif
   std::filesystem::create_directories(dir);
@@ -105,12 +129,23 @@ static std::string escape_json(const std::string& s)
   {
     switch(c)
     {
-    case '"':  out += "\\\""; break;
-    case '\\': out += "\\\\"; break;
-    case '\n': out += "\\n"; break;
-    case '\r': out += "\\r"; break;
-    case '\t': out += "\\t"; break;
-    default:   out += c;
+      case '"':
+        out += "\\\"";
+        break;
+      case '\\':
+        out += "\\\\";
+        break;
+      case '\n':
+        out += "\\n";
+        break;
+      case '\r':
+        out += "\\r";
+        break;
+      case '\t':
+        out += "\\t";
+        break;
+      default:
+        out += c;
     }
   }
   return out;
@@ -130,7 +165,8 @@ static std::string job_to_json(const Job& job)
   ss << ",\"args\":[";
   for(size_t i = 0; i < job.args.size(); ++i)
   {
-    if(i > 0) ss << ",";
+    if(i > 0)
+      ss << ",";
     ss << "\"" << escape_json(job.args[i]) << "\"";
   }
   ss << "]";
@@ -152,7 +188,8 @@ static std::string jobs_to_json(const std::vector<Job>& jobs)
   ss << "[";
   for(size_t i = 0; i < jobs.size(); ++i)
   {
-    if(i > 0) ss << ",";
+    if(i > 0)
+      ss << ",";
     ss << job_to_json(jobs[i]);
   }
   ss << "]";
@@ -163,11 +200,14 @@ static std::string jobs_to_json(const std::vector<Job>& jobs)
 static std::string extract_json_string(const std::string& json, const std::string& key)
 {
   auto pos = json.find("\"" + key + "\"");
-  if(pos == std::string::npos) return "";
+  if(pos == std::string::npos)
+    return "";
   pos = json.find(':', pos);
-  if(pos == std::string::npos) return "";
+  if(pos == std::string::npos)
+    return "";
   pos = json.find('"', pos + 1);
-  if(pos == std::string::npos) return "";
+  if(pos == std::string::npos)
+    return "";
   ++pos;
   std::string result;
   while(pos < json.size() && json[pos] != '"')
@@ -177,10 +217,18 @@ static std::string extract_json_string(const std::string& json, const std::strin
       ++pos;
       switch(json[pos])
       {
-      case 'n': result += '\n'; break;
-      case 'r': result += '\r'; break;
-      case 't': result += '\t'; break;
-      default:  result += json[pos]; break;
+        case 'n':
+          result += '\n';
+          break;
+        case 'r':
+          result += '\r';
+          break;
+        case 't':
+          result += '\t';
+          break;
+        default:
+          result += json[pos];
+          break;
       }
     }
     else
@@ -193,32 +241,41 @@ static std::string extract_json_string(const std::string& json, const std::strin
 static int64_t extract_json_int(const std::string& json, const std::string& key)
 {
   auto pos = json.find("\"" + key + "\"");
-  if(pos == std::string::npos) return 0;
+  if(pos == std::string::npos)
+    return 0;
   pos = json.find(':', pos);
-  if(pos == std::string::npos) return 0;
+  if(pos == std::string::npos)
+    return 0;
   ++pos;
-  while(pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) ++pos;
+  while(pos < json.size() && (json[pos] == ' ' || json[pos] == '\t'))
+    ++pos;
   return std::atoll(json.c_str() + pos);
 }
 
 static float extract_json_float(const std::string& json, const std::string& key)
 {
   auto pos = json.find("\"" + key + "\"");
-  if(pos == std::string::npos) return 0.0f;
+  if(pos == std::string::npos)
+    return 0.0f;
   pos = json.find(':', pos);
-  if(pos == std::string::npos) return 0.0f;
+  if(pos == std::string::npos)
+    return 0.0f;
   ++pos;
-  while(pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) ++pos;
+  while(pos < json.size() && (json[pos] == ' ' || json[pos] == '\t'))
+    ++pos;
   return std::strtof(json.c_str() + pos, nullptr);
 }
 
-static std::vector<std::string> extract_json_string_array(const std::string& json, const std::string& key)
+static std::vector<std::string> extract_json_string_array(const std::string& json,
+                                                          const std::string& key)
 {
   std::vector<std::string> result;
   auto pos = json.find("\"" + key + "\"");
-  if(pos == std::string::npos) return result;
+  if(pos == std::string::npos)
+    return result;
   pos = json.find('[', pos);
-  if(pos == std::string::npos) return result;
+  if(pos == std::string::npos)
+    return result;
   ++pos;
   while(pos < json.size() && json[pos] != ']')
   {
@@ -231,18 +288,28 @@ static std::vector<std::string> extract_json_string_array(const std::string& jso
         if(json[pos] == '\\' && pos + 1 < json.size())
         {
           ++pos;
-          switch(json[pos]) {
-          case 'n': val += '\n'; break;
-          case 'r': val += '\r'; break;
-          case 't': val += '\t'; break;
-          default: val += json[pos]; break;
+          switch(json[pos])
+          {
+            case 'n':
+              val += '\n';
+              break;
+            case 'r':
+              val += '\r';
+              break;
+            case 't':
+              val += '\t';
+              break;
+            default:
+              val += json[pos];
+              break;
           }
         }
         else
           val += json[pos];
         ++pos;
       }
-      if(pos < json.size()) ++pos; // skip closing "
+      if(pos < json.size())
+        ++pos; // skip closing "
       result.push_back(val);
     }
     else
@@ -263,7 +330,8 @@ static Job parse_job_json(const std::string& json)
   job.error = extract_json_string(json, "error");
   job.args = extract_json_string_array(json, "args");
   auto dep = extract_json_int(json, "depends_on");
-  if(dep > 0) job.depends_on = static_cast<uint64_t>(dep);
+  if(dep > 0)
+    job.depends_on = static_cast<uint64_t>(dep);
   job.created_at = std::chrono::system_clock::from_time_t(
       static_cast<time_t>(extract_json_int(json, "created_at")));
   job.started_at = std::chrono::system_clock::from_time_t(
@@ -281,13 +349,20 @@ static std::vector<Job> parse_jobs_json(const std::string& json)
   while(pos < json.size())
   {
     auto start = json.find('{', pos);
-    if(start == std::string::npos) break;
+    if(start == std::string::npos)
+      break;
     int depth = 0;
     size_t end = start;
     for(; end < json.size(); ++end)
     {
-      if(json[end] == '{') ++depth;
-      else if(json[end] == '}') { --depth; if(depth == 0) break; }
+      if(json[end] == '{')
+        ++depth;
+      else if(json[end] == '}')
+      {
+        --depth;
+        if(depth == 0)
+          break;
+      }
     }
     if(depth == 0)
     {
@@ -307,7 +382,8 @@ static std::vector<Job> parse_jobs_json(const std::string& json)
 static std::string send_to_daemon(const std::string& msg)
 {
   int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-  if(fd < 0) return "";
+  if(fd < 0)
+    return "";
 
   struct sockaddr_un addr{};
   addr.sun_family = AF_UNIX;
@@ -334,10 +410,12 @@ static std::string send_to_daemon(const std::string& msg)
   while(true)
   {
     auto n = read(fd, buf, sizeof(buf) - 1);
-    if(n <= 0) break;
+    if(n <= 0)
+      break;
     buf[n] = '\0';
     response += buf;
-    if(response.find('\n') != std::string::npos) break;
+    if(response.find('\n') != std::string::npos)
+      break;
   }
   close(fd);
 
@@ -354,8 +432,7 @@ bool JobQueueClient::is_daemon_running()
 
 std::optional<uint64_t> JobQueueClient::submit(JobType type, const std::string& description,
                                                const std::vector<std::string>& args,
-                                               std::optional<uint64_t> depends_on,
-                                               int priority)
+                                               std::optional<uint64_t> depends_on, int priority)
 {
   std::ostringstream msg;
   msg << "SUBMIT " << job_type_to_string(type) << " ";
@@ -369,7 +446,8 @@ std::optional<uint64_t> JobQueueClient::submit(JobType type, const std::string& 
     msg << " \"" << escape_json(a) << "\"";
 
   auto resp = send_to_daemon(msg.str());
-  if(resp.empty()) return std::nullopt;
+  if(resp.empty())
+    return std::nullopt;
 
   // Response: "OK <id>" or "ERR <msg>"
   if(resp.substr(0, 3) == "OK ")
@@ -380,7 +458,8 @@ std::optional<uint64_t> JobQueueClient::submit(JobType type, const std::string& 
 std::vector<Job> JobQueueClient::list()
 {
   auto resp = send_to_daemon("LIST");
-  if(resp.empty()) return {};
+  if(resp.empty())
+    return {};
   return parse_jobs_json(resp);
 }
 
@@ -393,9 +472,11 @@ bool JobQueueClient::cancel(uint64_t job_id)
 std::optional<Job> JobQueueClient::status(uint64_t job_id)
 {
   auto resp = send_to_daemon("STATUS " + std::to_string(job_id));
-  if(resp.empty() || resp == "NOT_FOUND") return std::nullopt;
+  if(resp.empty() || resp == "NOT_FOUND")
+    return std::nullopt;
   auto jobs = parse_jobs_json(resp);
-  if(jobs.empty()) return std::nullopt;
+  if(jobs.empty())
+    return std::nullopt;
   return jobs[0];
 }
 
@@ -426,10 +507,8 @@ bool JobQueueClient::is_paused()
 static std::string send_to_daemon(const std::string& msg)
 {
   auto pipe_path = socket_path().string();
-  HANDLE pipe = CreateFileA(
-      pipe_path.c_str(),
-      GENERIC_READ | GENERIC_WRITE,
-      0, nullptr, OPEN_EXISTING, 0, nullptr);
+  HANDLE pipe = CreateFileA(pipe_path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+                            OPEN_EXISTING, 0, nullptr);
 
   if(pipe == INVALID_HANDLE_VALUE)
     return "";
@@ -470,8 +549,7 @@ bool JobQueueClient::is_daemon_running()
 
 std::optional<uint64_t> JobQueueClient::submit(JobType type, const std::string& description,
                                                const std::vector<std::string>& args,
-                                               std::optional<uint64_t> depends_on,
-                                               int priority)
+                                               std::optional<uint64_t> depends_on, int priority)
 {
   std::ostringstream msg;
   msg << "SUBMIT " << job_type_to_string(type) << " ";
@@ -485,7 +563,8 @@ std::optional<uint64_t> JobQueueClient::submit(JobType type, const std::string& 
     msg << " \"" << a << "\"";
 
   auto resp = send_to_daemon(msg.str());
-  if(resp.empty()) return std::nullopt;
+  if(resp.empty())
+    return std::nullopt;
   if(resp.substr(0, 3) == "OK ")
     return static_cast<uint64_t>(std::stoull(resp.substr(3)));
   return std::nullopt;
@@ -494,7 +573,8 @@ std::optional<uint64_t> JobQueueClient::submit(JobType type, const std::string& 
 std::vector<Job> JobQueueClient::list()
 {
   auto resp = send_to_daemon("LIST");
-  if(resp.empty()) return {};
+  if(resp.empty())
+    return {};
   return parse_jobs_json(resp);
 }
 
@@ -507,9 +587,11 @@ bool JobQueueClient::cancel(uint64_t job_id)
 std::optional<Job> JobQueueClient::status(uint64_t job_id)
 {
   auto resp = send_to_daemon("STATUS " + std::to_string(job_id));
-  if(resp.empty() || resp == "NOT_FOUND") return std::nullopt;
+  if(resp.empty() || resp == "NOT_FOUND")
+    return std::nullopt;
   auto jobs = parse_jobs_json(resp);
-  if(jobs.empty()) return std::nullopt;
+  if(jobs.empty())
+    return std::nullopt;
   return jobs[0];
 }
 
@@ -557,11 +639,11 @@ JobQueueDaemon::~JobQueueDaemon()
 void JobQueueDaemon::load_jobs()
 {
   auto path = jobs_file_path();
-  if(!std::filesystem::exists(path)) return;
+  if(!std::filesystem::exists(path))
+    return;
 
   std::ifstream f(path);
-  std::string content((std::istreambuf_iterator<char>(f)),
-                       std::istreambuf_iterator<char>());
+  std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
   jobs_ = parse_jobs_json(content);
 
   // Reset any "running" jobs to "queued" (daemon restarted)
@@ -590,18 +672,20 @@ void JobQueueDaemon::stop()
 
 void JobQueueDaemon::process_next()
 {
-  if(paused_) return;
+  if(paused_)
+    return;
 
   // Find the next queued job whose dependencies are satisfied (highest priority first)
   Job* best = nullptr;
   for(auto& job : jobs_)
   {
-    if(job.state != JobState::Queued) continue;
+    if(job.state != JobState::Queued)
+      continue;
 
     if(job.depends_on)
     {
       auto it = std::find_if(jobs_.begin(), jobs_.end(),
-          [&](const Job& j) { return j.id == *job.depends_on; });
+                             [&](const Job& j) { return j.id == *job.depends_on; });
       if(it != jobs_.end() && it->state != JobState::Completed)
         continue; // dependency not done
     }
@@ -623,8 +707,7 @@ void JobQueueDaemon::execute_job(Job& job)
   job.started_at = std::chrono::system_clock::now();
   save_jobs();
 
-  spdlog::info("Starting job {}: {} ({})", job.id, job.description,
-               job_type_to_string(job.type));
+  spdlog::info("Starting job {}: {} ({})", job.id, job.description, job_type_to_string(job.type));
 
   // Build command: use our own executable path
   std::ostringstream cmd;
@@ -684,12 +767,17 @@ void JobQueueDaemon::handle_client(int client_fd)
 {
   char buf[8192];
   auto n = read(client_fd, buf, sizeof(buf) - 1);
-  if(n <= 0) { close(client_fd); return; }
+  if(n <= 0)
+  {
+    close(client_fd);
+    return;
+  }
   buf[n] = '\0';
 
   std::string msg(buf);
   // Trim newline
-  while(!msg.empty() && msg.back() == '\n') msg.pop_back();
+  while(!msg.empty() && msg.back() == '\n')
+    msg.pop_back();
 
   std::string response;
 
@@ -704,8 +792,7 @@ void JobQueueDaemon::handle_client(int client_fd)
   else if(msg.substr(0, 7) == "CANCEL ")
   {
     auto id = std::stoull(msg.substr(7));
-    auto it = std::find_if(jobs_.begin(), jobs_.end(),
-        [id](const Job& j) { return j.id == id; });
+    auto it = std::find_if(jobs_.begin(), jobs_.end(), [id](const Job& j) { return j.id == id; });
     if(it != jobs_.end() && (it->state == JobState::Queued || it->state == JobState::Running))
     {
       it->state = JobState::Cancelled;
@@ -719,8 +806,7 @@ void JobQueueDaemon::handle_client(int client_fd)
   else if(msg.substr(0, 7) == "STATUS ")
   {
     auto id = std::stoull(msg.substr(7));
-    auto it = std::find_if(jobs_.begin(), jobs_.end(),
-        [id](const Job& j) { return j.id == id; });
+    auto it = std::find_if(jobs_.begin(), jobs_.end(), [id](const Job& j) { return j.id == id; });
     if(it != jobs_.end())
       response = job_to_json(*it);
     else
@@ -741,7 +827,8 @@ void JobQueueDaemon::handle_client(int client_fd)
       size_t end = 1;
       while(end < rest.size() && rest[end] != '"')
       {
-        if(rest[end] == '\\') ++end;
+        if(rest[end] == '\\')
+          ++end;
         ++end;
       }
       description = rest.substr(1, end - 1);
@@ -783,10 +870,14 @@ void JobQueueDaemon::handle_client(int client_fd)
         std::string arg;
         while(pos < rest.size() && rest[pos] != '"')
         {
-          if(rest[pos] == '\\' && pos + 1 < rest.size()) { ++pos; }
+          if(rest[pos] == '\\' && pos + 1 < rest.size())
+          {
+            ++pos;
+          }
           arg += rest[pos++];
         }
-        if(pos < rest.size()) ++pos;
+        if(pos < rest.size())
+          ++pos;
         args.push_back(arg);
       }
       else
@@ -833,8 +924,7 @@ void JobQueueDaemon::handle_client(int client_fd)
     {
       auto id = std::stoull(rest.substr(0, sp));
       auto pri = std::stoi(rest.substr(sp + 1));
-      auto it = std::find_if(jobs_.begin(), jobs_.end(),
-          [id](const Job& j) { return j.id == id; });
+      auto it = std::find_if(jobs_.begin(), jobs_.end(), [id](const Job& j) { return j.id == id; });
       if(it != jobs_.end() && it->state == JobState::Queued)
       {
         it->priority = pri;
@@ -899,7 +989,7 @@ int JobQueueDaemon::run()
     while(running_)
     {
       bool any_running = std::any_of(jobs_.begin(), jobs_.end(),
-          [](const Job& j) { return j.state == JobState::Running; });
+                                     [](const Job& j) { return j.state == JobState::Running; });
       if(!any_running)
         process_next();
       std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -939,14 +1029,21 @@ JobQueueDaemon::JobQueueDaemon()
       next_id_ = j.id + 1;
 }
 
-JobQueueDaemon::~JobQueueDaemon() { stop(); }
+JobQueueDaemon::~JobQueueDaemon()
+{
+  stop();
+}
 
-void JobQueueDaemon::stop() { running_ = false; }
+void JobQueueDaemon::stop()
+{
+  running_ = false;
+}
 
 void JobQueueDaemon::load_jobs()
 {
   auto path = jobs_file_path();
-  if(!std::filesystem::exists(path)) return;
+  if(!std::filesystem::exists(path))
+    return;
   std::ifstream f(path);
   std::string json((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
   jobs_ = parse_jobs_json(json);
@@ -962,17 +1059,20 @@ void JobQueueDaemon::save_jobs()
 
 void JobQueueDaemon::process_next()
 {
-  if(paused_) return;
+  if(paused_)
+    return;
   for(auto& j : jobs_)
   {
-    if(j.state != JobState::Queued) continue;
+    if(j.state != JobState::Queued)
+      continue;
     if(j.depends_on)
     {
       bool dep_done = false;
       for(auto& d : jobs_)
         if(d.id == *j.depends_on && d.state == JobState::Completed)
           dep_done = true;
-      if(!dep_done) continue;
+      if(!dep_done)
+        continue;
     }
     execute_job(j);
     break;
@@ -1019,12 +1119,9 @@ int JobQueueDaemon::run()
 
   while(running_)
   {
-    HANDLE pipe = CreateNamedPipeA(
-        pipe_path.c_str(),
-        PIPE_ACCESS_DUPLEX,
-        PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-        PIPE_UNLIMITED_INSTANCES,
-        4096, 4096, 0, nullptr);
+    HANDLE pipe = CreateNamedPipeA(pipe_path.c_str(), PIPE_ACCESS_DUPLEX,
+                                   PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+                                   PIPE_UNLIMITED_INSTANCES, 4096, 4096, 0, nullptr);
 
     if(pipe == INVALID_HANDLE_VALUE)
     {
@@ -1089,7 +1186,8 @@ int JobQueueDaemon::run()
         }
       }
       response = found ? "OK\n" : "NOT_FOUND\n";
-      if(found) save_jobs();
+      if(found)
+        save_jobs();
     }
     else if(msg.substr(0, 7) == "STATUS ")
     {
@@ -1104,7 +1202,8 @@ int JobQueueDaemon::run()
           break;
         }
       }
-      if(!found) response = "NOT_FOUND\n";
+      if(!found)
+        response = "NOT_FOUND\n";
     }
     else if(msg.substr(0, 9) == "PRIORITY ")
     {
@@ -1125,7 +1224,8 @@ int JobQueueDaemon::run()
           }
         }
         response = found ? "OK\n" : "NOT_FOUND\n";
-        if(found) save_jobs();
+        if(found)
+          save_jobs();
       }
       else
         response = "ERR bad format\n";

@@ -18,7 +18,8 @@ static bool has_ffmpeg()
 
 bool has_subtitle_filter()
 {
-  if(!has_ffmpeg()) return false;
+  if(!has_ffmpeg())
+    return false;
   // Check if subtitles filter is available
   std::string cmd = "ffmpeg -filters 2>/dev/null | grep -q subtitles";
 #ifdef _WIN32

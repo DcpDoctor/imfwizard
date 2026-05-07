@@ -11,11 +11,11 @@ namespace imfwizard
 // ProRes codec IDs for IMF wrapping
 enum class ProResProfile
 {
-  Proxy,    // 'apco'
-  LT,       // 'apcs'
+  Proxy, // 'apco'
+  LT, // 'apcs'
   Standard, // 'apcn'
-  HQ,       // 'apch'
-  XQ        // 'ap4h'
+  HQ, // 'apch'
+  XQ // 'ap4h'
 };
 
 struct ProResImpOptions
