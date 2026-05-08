@@ -54,7 +54,8 @@ jobs:
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
         run: |
-          vcpkg install libxml2 openssl xerces-c --triplet x64-windows
+          $env:VCPKG_BUILD_TYPE="release"
+          vcpkg install libxml2 openssl xerces-c sqlite3 --triplet x64-windows
 
       - name: Configure (Linux)
         if: runner.os == 'Linux'
