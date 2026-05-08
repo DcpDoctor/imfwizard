@@ -39,6 +39,7 @@
       <button data-page="deliver-page">Deliver</button>
       <button data-page="todcp-page">To DCP</button>
       <button data-page="jobs-page">Jobs</button>
+      <button data-page="preferences-page">Preferences</button>
       <span class="nav-spacer"></span>
       <button id="shortcuts-btn" title="Keyboard shortcuts">⌨️</button>
       <button id="theme-toggle" title="Toggle dark/light theme">🌙</button>
@@ -541,6 +542,101 @@
             <h3 id="asset-detail-name"></h3>
             <div id="asset-detail-info"></div>
           </div>
+        </section>
+      </section>
+
+      <section class="page" id="preferences-page">
+        <section class="panel">
+          <h2>Preferences</h2>
+          <form id="preferences-form">
+            <fieldset>
+              <legend>General</legend>
+              <div class="field">
+                <label for="pref-profile">Default Application Profile</label>
+                <select id="pref-profile">
+                  <option value="App2">App 2 (2K)</option>
+                  <option value="App2e" selected>App 2e (2K extended)</option>
+                  <option value="App4">App 4 (4K)</option>
+                  <option value="App5">App 5 (HDR)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pref-creator">Creator Name</label>
+                <input type="text" id="pref-creator" placeholder="My Studio">
+              </div>
+              <div class="field">
+                <label for="pref-language">Default Language (RFC 5646)</label>
+                <input type="text" id="pref-language" value="en" placeholder="en">
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Encoding</legend>
+              <div class="field">
+                <label for="pref-encoder">Preferred Encoder</label>
+                <select id="pref-encoder">
+                  <option value="grok">grok (GPU)</option>
+                  <option value="openjpeg">OpenJPEG (CPU)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pref-bandwidth">Default Bandwidth (Mbps)</label>
+                <input type="number" id="pref-bandwidth" value="250" min="50" max="500">
+              </div>
+              <div class="field">
+                <label for="pref-colourspace">Default Colour Space</label>
+                <select id="pref-colourspace">
+                  <option value="Rec.709">Rec.709</option>
+                  <option value="P3-D65">P3-D65</option>
+                  <option value="Rec.2020">Rec.2020</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pref-hdr">Default HDR Mode</label>
+                <select id="pref-hdr">
+                  <option value="SDR" selected>SDR</option>
+                  <option value="HLG">HLG</option>
+                  <option value="PQ">PQ (Dolby Vision / HDR10)</option>
+                </select>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Audio</legend>
+              <div class="field">
+                <label for="pref-channels">Default Channel Config</label>
+                <select id="pref-channels">
+                  <option value="stereo">Stereo</option>
+                  <option value="5.1" selected>5.1</option>
+                  <option value="7.1">7.1</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pref-loudness">Loudness Target (LUFS)</label>
+                <input type="number" id="pref-loudness" value="-24" min="-36" max="-14" step="0.1">
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Signing</legend>
+              <div class="field">
+                <label for="pref-signing-cert">Signing Certificate</label>
+                <input type="text" id="pref-signing-cert" placeholder="/path/to/cert.pem">
+              </div>
+              <div class="field">
+                <label for="pref-signing-key">Signing Key</label>
+                <input type="text" id="pref-signing-key" placeholder="/path/to/key.pem">
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Delivery</legend>
+              <div class="field">
+                <label for="pref-output-dir">Default Output Directory</label>
+                <input type="text" id="pref-output-dir" placeholder="/path/to/output">
+              </div>
+            </fieldset>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Save Preferences</button>
+              <button type="button" id="pref-reset" class="btn-secondary">Reset to Defaults</button>
+            </div>
+          </form>
         </section>
       </section>
     </main>

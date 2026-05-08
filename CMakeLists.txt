@@ -64,6 +64,7 @@ add_library(imfwizard_core STATIC
     src/report.cpp
     src/conform.cpp
     src/profiles.cpp
+    src/preferences.cpp
     src/captions.cpp
     src/channel_map.cpp
     src/cloud.cpp
