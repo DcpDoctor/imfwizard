@@ -120,6 +120,13 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **macOS .dmg** — universal binary with code signing and notarization
 - REST API mode with Prometheus-compatible `/metrics` endpoint
 
+### Mastering & Compliance
+- **DCDM creation** — Digital Cinema Distribution Master (X'Y'Z' 12/16-bit) as intermediate format
+- **Forensic watermarking** — NexGuard, Civolution, or internal spatial watermark embedding
+- **Trailer packaging** — ratings cards (MPAA/BBFC/FSK), green/red band, countdown leaders
+- **Content version tracker** — SQLite database tracking version history and delivery destinations
+- **Accessibility compliance** — verify AD/HI/SL tracks against CVAA, EAA, AODA, Ofcom standards
+
 ## Building
 
 ### Prerequisites
