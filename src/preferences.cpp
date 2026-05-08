@@ -1,10 +1,32 @@
 #include "imfwizard/preferences.h"
+#include "postkit/preferences.h"
 
 #include <spdlog/spdlog.h>
 
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
+
+static constexpr uint32_t CURRENT_PREFS_VERSION = 1;
+
+static std::vector<postkit::PrefsMigration> migrations()
+{
+  return {
+    {1, "Initial versioned schema", [](std::string const& json) {
+      auto j = postkit::json_insert_if_missing(json, "default_app_profile", "\"App2E\"");
+      j = postkit::json_insert_if_missing(j, "preferred_encoder", "\"grok\"");
+      j = postkit::json_insert_if_missing(j, "default_bandwidth_mbps", "250");
+      j = postkit::json_insert_if_missing(j, "default_colour_space", "\"Rec.709\"");
+      j = postkit::json_insert_if_missing(j, "gpu_device", "-1");
+      j = postkit::json_insert_if_missing(j, "default_hdr_mode", "\"SDR\"");
+      j = postkit::json_insert_if_missing(j, "default_channel_config", "\"5.1\"");
+      j = postkit::json_insert_if_missing(j, "loudness_target_lufs", "-24.0");
+      j = postkit::json_insert_if_missing(j, "theme", "\"dark\"");
+      j = postkit::json_insert_if_missing(j, "show_advanced_options", "false");
+      return j;
+    }},
+  };
+}
 
 namespace imfwizard
 {
@@ -97,6 +119,21 @@ Preferences load_preferences()
   std::ostringstream ss;
   ss << f.rdbuf();
   std::string json = ss.str();
+  f.close();
+
+  // Run schema migrations if needed
+  uint32_t file_version = postkit::prefs_version(json);
+  if (file_version < CURRENT_PREFS_VERSION)
+  {
+    spdlog::info("Migrating preferences from version {} to {}", file_version, CURRENT_PREFS_VERSION);
+    json = postkit::migrate_preferences(json, migrations());
+    std::ofstream out(path);
+    if (out.is_open())
+    {
+      out << json;
+      out.close();
+    }
+  }
 
   auto s = [&](const std::string& key, std::string& field) {
     auto v = json_string(json, key);
@@ -149,6 +186,7 @@ int save_preferences(const Preferences& prefs)
   }
 
   f << "{\n";
+  f << "  \"version\": " << CURRENT_PREFS_VERSION << ",\n";
   f << "  \"default_app_profile\": \"" << escape_json(prefs.default_app_profile) << "\",\n";
   f << "  \"creator_name\": \"" << escape_json(prefs.creator_name) << "\",\n";
   f << "  \"default_language\": \"" << escape_json(prefs.default_language) << "\",\n";
