@@ -512,16 +512,23 @@ imfwizard sdi-preview -i video.mxf --device 0
 imfwizard/
 ├── include/imfwizard/   # Public headers
 ├── src/                 # Core library + CLI
-├── tests/               # Unit + integration tests
+├── tests/              # Unit + integration tests
 ├── gui/                 # Tauri 2 desktop application
 │   ├── src/             # Frontend (Vite + vanilla JS)
 │   └── src-tauri/       # Rust backend (plugin shell)
+├── bindings/python/     # SWIG Python bindings
 ├── docs/                # GitHub Pages site
 └── extern/              # Git submodules
     ├── asdcplib/        # AS-DCP + AS-02 MXF (BSD)
     ├── CLI11/           # CLI parsing (BSD)
+    ├── dcpdoctor/       # DCP/IMF validation & QC
+    ├── postkit/         # Shared post-production library
     └── spdlog/          # Logging (MIT)
 ```
+
+IMF Wizard shares common functionality with [DCP Wizard](https://github.com/DcpDoctor/dcpwizard)
+via the [postkit](https://github.com/DcpDoctor/postkit) library (encoding, transcoding, hashing,
+job queue, preferences, REST API, watch folders, and more).
 
 ## License
 
