@@ -10,3 +10,6 @@
 [submodule "extern/dcpdoctor"]
 	path = extern/dcpdoctor
 	url = ../dcpdoctor
+[submodule "extern/postkit"]
+	path = extern/postkit
+	url = https://github.com/DcpDoctor/postkit.git
