@@ -126,7 +126,7 @@
               <input type="number" id="encode-threads" value="0" min="0" placeholder="0 = auto" />
             </div>
           </div>
-          <button type="submit" class="btn-primary" id="create-btn">Create IMP</button>
+          <button type="submit" class="btn-primary" id="create-btn" disabled>Create IMP</button>
         </form>
       </section>
 
@@ -178,7 +178,7 @@
             <button type="button" id="sup-select-output">Browse...</button>
             <span id="sup-output-path" class="path-display">No directory selected</span>
           </div>
-          <button class="btn-primary" id="sup-create">Create Supplemental IMP</button>
+          <button class="btn-primary" id="sup-create" disabled>Create Supplemental IMP</button>
           <pre id="sup-log" class="output-log-box" style="display:none; margin-top:1rem;"></pre>
         </section>
       </section>
@@ -192,7 +192,7 @@
             <button type="button" id="loud-select">Browse...</button>
             <span id="loud-path" class="path-display">No file selected</span>
           </div>
-          <button class="btn-primary" id="loud-measure">Measure Loudness</button>
+          <button class="btn-primary" id="loud-measure" disabled>Measure Loudness</button>
           <div id="loud-results" class="results-panel" style="display:none; margin-top:1rem;">
             <div class="result-row"><span class="result-label">Integrated Loudness:</span><span id="loud-integrated">—</span></div>
             <div class="result-row"><span class="result-label">Loudness Range:</span><span id="loud-range">—</span></div>
@@ -250,7 +250,7 @@
               <label>Track Summary</label>
               <pre id="meta-tracks" class="info-display"></pre>
             </div>
-            <button class="btn-primary" id="meta-save">Save Metadata</button>
+            <button class="btn-primary" id="meta-save" disabled>Save Metadata</button>
           </div>
         </section>
       </section>
@@ -287,7 +287,7 @@
               </select>
             </div>
           </div>
-          <button class="btn-primary" id="tc-start">Transcode</button>
+          <button class="btn-primary" id="tc-start" disabled>Transcode</button>
           <button class="btn-secondary" id="tc-queue">Add to Queue</button>
           <pre id="tc-log" style="margin-top:1rem; display:none;"></pre>
         </section>
@@ -301,7 +301,7 @@
             <button type="button" id="val-select">Browse...</button>
             <span id="val-path" class="path-display">No directory selected</span>
           </div>
-          <button class="btn-primary" id="val-start">Validate</button>
+          <button class="btn-primary" id="val-start" disabled>Validate</button>
           <pre id="val-log" style="margin-top:1rem; display:none;"></pre>
         </section>
       </section>
@@ -409,7 +409,7 @@
               <input type="number" id="bi-fontsize" value="48" min="12" max="120" />
             </div>
           </div>
-          <button class="btn-primary" id="bi-start">Burn In Subtitles</button>
+          <button class="btn-primary" id="bi-start" disabled>Burn In Subtitles</button>
           <pre id="bi-log" style="margin-top:1rem; display:none;"></pre>
         </section>
       </section>
@@ -435,7 +435,7 @@
               </select>
             </div>
           </div>
-          <button class="btn-primary" id="an-analyze">Analyze</button>
+          <button class="btn-primary" id="an-analyze" disabled>Analyze</button>
           <div id="an-results" style="display:none; margin-top:1.5rem;">
             <div class="result-row"><span class="result-label">Total Frames:</span><span id="an-frames">—</span></div>
             <div class="result-row"><span class="result-label">Duration:</span><span id="an-duration">—</span></div>
@@ -487,7 +487,7 @@
               <label><input type="checkbox" value="archival" /> Archival</label>
             </div>
           </div>
-          <button class="btn-primary" id="del-start">Start Batch Delivery</button>
+          <button class="btn-primary" id="del-start" disabled>Start Batch Delivery</button>
           <pre id="del-log" style="margin-top:1rem; display:none;"></pre>
         </section>
       </section>
@@ -521,7 +521,7 @@
               </select>
             </div>
           </div>
-          <button class="btn-primary" id="dcp-convert">Convert to DCP</button>
+          <button class="btn-primary" id="dcp-convert" disabled>Convert to DCP</button>
           <pre id="dcp-log" style="margin-top:1rem; display:none;"></pre>
         </section>
       </section>
@@ -536,7 +536,7 @@
             <button type="button" id="asset-select-dir">Browse...</button>
             <span id="asset-dir-path" class="path-display">No directory selected</span>
           </div>
-          <button class="btn-primary" id="asset-scan">Scan Assets</button>
+          <button class="btn-primary" id="asset-scan" disabled>Scan Assets</button>
           <div id="asset-grid" class="asset-grid" style="display:none;"></div>
           <div id="asset-detail" class="asset-detail" style="display:none;">
             <h3 id="asset-detail-name"></h3>
