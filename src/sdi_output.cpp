@@ -123,7 +123,7 @@ SdiOutputResult sdi_preview(const SdiOutputOptions& opts)
   }
 
   // Build GStreamer pipeline
-  // Source: multifilesrc for J2K frames → openjpeg dec → videoconvert → decklinkvideosink
+  // Source: multifilesrc for J2K frames → grok dec → videoconvert → decklinkvideosink
   std::ostringstream pipeline;
 
   // Determine source type

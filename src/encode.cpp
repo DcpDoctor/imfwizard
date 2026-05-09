@@ -64,16 +64,13 @@ uint32_t count_frames(const fs::path& dir)
 
 static std::string find_encoder()
 {
-  // Prefer grk_compress if available
-  for(const auto& cmd : {"grk_compress", "opj_compress"})
-  {
-    std::string check = std::string("which ") + cmd + " >/dev/null 2>&1";
+  std::string cmd = "grk_compress";
+  std::string check = std::string("which ") + cmd + " >/dev/null 2>&1";
 #ifdef _WIN32
-    check = std::string("where ") + cmd + " >NUL 2>&1";
+  check = std::string("where ") + cmd + " >NUL 2>&1";
 #endif
-    if(system(check.c_str()) == 0)
-      return cmd;
-  }
+  if(system(check.c_str()) == 0)
+    return cmd;
   return "";
 }
 
@@ -128,7 +125,7 @@ EncodeResult encode_to_j2k(const EncodeOptions& opts)
   std::string encoder = find_encoder();
   if(encoder.empty())
   {
-    result.error = "No J2K encoder found. Install grk_compress (grok) or opj_compress (OpenJPEG)";
+    result.error = "No J2K encoder found. Install grk_compress (grok)";
     return result;
   }
 
@@ -160,33 +157,17 @@ EncodeResult encode_to_j2k(const EncodeOptions& opts)
 
     // Build encoder command
     std::string cmd;
-    if(encoder == "grk_compress")
-    {
-      cmd = "grk_compress"
-            " -i " +
-            input_file.string() + " -o " + out_path.string() + " -r " +
-            std::to_string(opts.target_bitrate_mbps) + " -n " +
-            std::to_string(opts.num_resolutions) + " -b " + std::to_string(opts.code_block_width) +
-            "," + std::to_string(opts.code_block_height);
-      if(opts.cinema_profile)
-        cmd += " -cinema2K 24"; // will be overridden by actual rate
-      if(opts.num_threads > 0)
-        cmd += " -threads " + std::to_string(opts.num_threads);
-      cmd += " 2>/dev/null";
-    }
-    else
-    {
-      // opj_compress
-      cmd = "opj_compress"
-            " -i " +
-            input_file.string() + " -o " + out_path.string() + " -r " +
-            std::to_string(opts.target_bitrate_mbps) + " -n " +
-            std::to_string(opts.num_resolutions) + " -b " + std::to_string(opts.code_block_width) +
-            "," + std::to_string(opts.code_block_height);
-      if(opts.cinema_profile)
-        cmd += " -cinema2K";
-      cmd += " 2>/dev/null";
-    }
+    cmd = "grk_compress"
+          " -i " +
+          input_file.string() + " -o " + out_path.string() + " -r " +
+          std::to_string(opts.target_bitrate_mbps) + " -n " +
+          std::to_string(opts.num_resolutions) + " -b " + std::to_string(opts.code_block_width) +
+          "," + std::to_string(opts.code_block_height);
+    if(opts.cinema_profile)
+      cmd += " -cinema2K 24"; // will be overridden by actual rate
+    if(opts.num_threads > 0)
+      cmd += " -threads " + std::to_string(opts.num_threads);
+    cmd += " 2>/dev/null";
 
     int ret = system(cmd.c_str());
     if(ret != 0)

@@ -12,15 +12,13 @@ namespace imfwizard
 
 static std::string find_decoder()
 {
-  for(const auto& cmd : {"grk_decompress", "opj_decompress"})
-  {
-    std::string check = std::string("which ") + cmd + " >/dev/null 2>&1";
+  std::string cmd = "grk_decompress";
+  std::string check = std::string("which ") + cmd + " >/dev/null 2>&1";
 #ifdef _WIN32
-    check = std::string("where ") + cmd + " >NUL 2>&1";
+  check = std::string("where ") + cmd + " >NUL 2>&1";
 #endif
-    if(system(check.c_str()) == 0)
-      return cmd;
-  }
+  if(system(check.c_str()) == 0)
+    return cmd;
   return "";
 }
 
@@ -76,7 +74,7 @@ PreviewResult decode_preview_frame(const PreviewOptions& opts)
   auto decoder = find_decoder();
   if(decoder.empty())
   {
-    result.error = "No J2K decoder found (need grk_decompress or opj_decompress)";
+    result.error = "No J2K decoder found (need grk_decompress)";
     return result;
   }
 
@@ -87,15 +85,7 @@ PreviewResult decode_preview_frame(const PreviewOptions& opts)
   auto output_file = out_dir / ("preview_" + std::to_string(opts.frame) + ".png");
 
   // Decode J2K to PNG
-  std::string cmd;
-  if(decoder.find("grk") != std::string::npos)
-  {
-    cmd = decoder + " -i \"" + input_file.string() + "\" -o \"" + output_file.string() + "\"";
-  }
-  else
-  {
-    cmd = decoder + " -i \"" + input_file.string() + "\" -o \"" + output_file.string() + "\"";
-  }
+  std::string cmd = decoder + " -i \"" + input_file.string() + "\" -o \"" + output_file.string() + "\"";
 
   // If thumbnail requested, pipe through ffmpeg for resize
   if(opts.generate_thumbnail && opts.thumbnail_width > 0)

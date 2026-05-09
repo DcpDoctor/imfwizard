@@ -21,7 +21,7 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **SHA-1 hashing** and optional **XML-DSIG signing**
 
 ### Encoding & Transcoding
-- **Image encoding pipeline** — DPX, TIFF, EXR, PNG, BMP, JPEG → JPEG 2000 (via grok or OpenJPEG)
+- **Image encoding pipeline** — DPX, TIFF, EXR, PNG, BMP, JPEG → JPEG 2000 (via grok, GPU and CPU)
 - **ProRes / DNxHR / H.264 / H.265 transcoding** — video files → image sequence → J2K (via ffmpeg)
 - **ProRes IMF packaging** — create App#2E IMPs directly from ProRes .mov files
 - **ACES (App#5) colour management** — ACES transforms during encode
@@ -139,7 +139,7 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 
 ### Optional runtime dependencies
 
-- **grok** or **OpenJPEG** — for image→J2K encoding (`grk_compress` / `opj_compress`)
+- **grok** — for image→J2K encoding and decoding (GPU and CPU)
 - **ffmpeg** / **ffprobe** — for transcoding, loudness, channel remapping, quality metrics
 - **dovi_tool** — for Dolby Vision RPU injection
 - **hdr10plus_tool** — for HDR10+ dynamic metadata injection

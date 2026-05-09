@@ -16,7 +16,7 @@ struct Preferences
   std::string default_language = "en";         // RFC 5646
 
   // Encoding
-  std::string preferred_encoder = "grok";      // "grok" or "openjpeg"
+  std::string preferred_encoder = "grok";
   uint32_t default_bandwidth_mbps = 250;
   std::string default_colour_space = "Rec.709";
   int gpu_device = -1;

@@ -50,7 +50,7 @@ struct ThumbnailStripResult
   std::string error;
 };
 
-// Decode a single J2K frame to PNG thumbnail (uses opj_decompress or grk_decompress)
+// Decode a single J2K frame to PNG thumbnail (uses grk_decompress)
 PreviewResult decode_preview_frame(const PreviewOptions& opts);
 
 // Generate a strip of thumbnails at regular intervals
