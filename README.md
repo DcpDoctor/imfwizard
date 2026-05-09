@@ -1,5 +1,9 @@
 # IMF Wizard
 
+[![CI](https://github.com/PostPerfection/imfwizard/actions/workflows/ci.yml/badge.svg)](https://github.com/PostPerfection/imfwizard/actions/workflows/ci.yml)
+
+[Documentation](https://postperfection.github.io/imfwizard/)
+
 Interoperable Master Format (IMF) package creator — CLI tool and desktop GUI.
 
 ## Overview
