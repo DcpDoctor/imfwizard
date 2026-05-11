@@ -4,9 +4,7 @@
 
 [Documentation](https://postperfection.github.io/imfwizard/)
 
-Interoperable Master Format (IMF) package creator — CLI tool and desktop GUI.
-
-The core library and CLI are written in Rust, with a legacy C++ implementation.
+Interoperable Master Format (IMF) package creator — CLI tool and desktop GUI. Written in Rust.
 
 ## Overview
 
@@ -135,25 +133,13 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 
 ## Building
 
-### Rust (primary)
-
 ```bash
 cd rust
 cargo build --release
 cargo test
 ```
 
-The Rust workspace uses [postkit](https://github.com/PostPerfection/postkit) and [dcpdoctor-core](https://github.com/PostPerfection/dcpdoctor) as git dependencies.
-
-### C++ (legacy)
-
-#### Prerequisites
-
-- C++23 compiler (GCC 13+, Clang 16+, MSVC 2022)
-- CMake 3.25+
-- libxml2
-- OpenSSL
-- Xerces-C++
+The Rust workspace uses [postkit](https://github.com/PostPerfection/postkit) and [dcpdoctor-core](https://github.com/PostPerfection/dcpdoctor) as git dependencies. MXF wrapping uses [asdcplib-rs](https://github.com/PostPerfection/asdcplib-rs) FFI bindings.
 
 ### Optional runtime dependencies
 
@@ -163,64 +149,6 @@ The Rust workspace uses [postkit](https://github.com/PostPerfection/postkit) and
 - **hdr10plus_tool** — for HDR10+ dynamic metadata injection
 - **Java** + **Netflix Photon** — for IMF validation
 - **AWS CLI** — for S3 upload
-
-### C++ Build
-
-```bash
-git clone --recurse-submodules https://github.com/PostPerfection/imfwizard.git
-cd imfwizard
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-```
-
-### Run tests
-
-```bash
-cd build
-ctest
-```
-
-### Python Bindings (SWIG)
-
-Requires SWIG 4.0+ and Python 3.8+ development headers.
-
-```bash
-# Install SWIG (Ubuntu/Debian)
-sudo apt install swig python3-dev
-
-# Install SWIG (Fedora)
-sudo dnf install swig python3-devel
-
-# Install SWIG (macOS)
-brew install swig python@3
-
-# Build with bindings enabled
-cmake -B build -DBUILD_PYTHON_BINDINGS=ON
-cmake --build build
-
-# Use from build directory
-cd build/bindings/python
-python3 -c "import imfwizard; print(imfwizard.generate_uuid())"
-```
-
-Example usage:
-
-```python
-import imfwizard
-
-opts = imfwizard.ImpOptions()
-opts.title = "My Feature Film"
-opts.video_dir = "/path/to/j2k_frames"
-opts.audio_file = "/path/to/audio.wav"
-opts.output_dir = "/path/to/output"
-
-result = imfwizard.create_ov_imp(opts)
-if result.success:
-    print(f"Created IMP: {result.cpl_uuid}")
-```
-
-See `bindings/python/examples/` for more examples.
 
 ### GUI (Tauri 2)
 
@@ -535,20 +463,15 @@ imfwizard sdi-preview -i video.mxf --device 0
 
 ```
 imfwizard/
-├── include/imfwizard/   # Public headers
-├── src/                 # Core library + CLI
-├── tests/              # Unit + integration tests
+├── rust/                # Rust workspace
+│   ├── crates/
+│   │   ├── imfwizard-core/  # Core IMF creation library
+│   │   └── imfwizard-cli/   # CLI binary
+│   └── Cargo.toml
 ├── gui/                 # Tauri 2 desktop application
 │   ├── src/             # Frontend (Vite + vanilla JS)
 │   └── src-tauri/       # Rust backend (plugin shell)
-├── bindings/python/     # SWIG Python bindings
-├── docs/                # GitHub Pages site
-└── extern/              # Git submodules
-    ├── asdcplib/        # AS-DCP + AS-02 MXF (BSD)
-    ├── CLI11/           # CLI parsing (BSD)
-    ├── dcpdoctor/       # DCP/IMF validation & QC
-    ├── postkit/         # Shared post-production library
-    └── spdlog/          # Logging (MIT)
+└── docs/                # GitHub Pages site
 ```
 
 IMF Wizard shares common functionality with [DCP Wizard](https://github.com/DcpDoctor/dcpwizard)
