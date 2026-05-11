@@ -6,6 +6,8 @@
 
 Interoperable Master Format (IMF) package creator — CLI tool and desktop GUI.
 
+The core library and CLI are written in Rust, with a legacy C++ implementation.
+
 ## Overview
 
 IMF Wizard creates valid IMF packages (Interoperable Master Packages) from
@@ -133,7 +135,19 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 
 ## Building
 
-### Prerequisites
+### Rust (primary)
+
+```bash
+cd rust
+cargo build --release
+cargo test
+```
+
+The Rust workspace uses [postkit](https://github.com/PostPerfection/postkit) and [dcpdoctor-core](https://github.com/PostPerfection/dcpdoctor) as git dependencies.
+
+### C++ (legacy)
+
+#### Prerequisites
 
 - C++23 compiler (GCC 13+, Clang 16+, MSVC 2022)
 - CMake 3.25+
@@ -150,10 +164,10 @@ video sources, image sequences, and WAV audio, conforming to SMPTE ST 2067 (App#
 - **Java** + **Netflix Photon** — for IMF validation
 - **AWS CLI** — for S3 upload
 
-### Build
+### C++ Build
 
 ```bash
-git clone --recurse-submodules https://github.com/DcpDoctor/imfwizard.git
+git clone --recurse-submodules https://github.com/PostPerfection/imfwizard.git
 cd imfwizard
 mkdir build && cd build
 cmake ..

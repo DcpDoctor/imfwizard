@@ -1,0 +1,23 @@
+[package]
+name = "imfwizard-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "IMF (Interoperable Master Format) creation and packaging library"
+
+[dependencies]
+base64 = "0.22"
+dcpdoctor-core.workspace = true
+postkit.workspace = true
+quick-xml.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+thiserror.workspace = true
+time = "0.3"
+tracing.workspace = true
+uuid.workspace = true
+x509-parser = "0.16"
+
+[dev-dependencies]
+tempfile = "3"

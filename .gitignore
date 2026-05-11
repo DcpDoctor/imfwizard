@@ -27,6 +27,9 @@ tests/dcps/hfr/*.tar
 tests/dcps/hfr/fox-*
 tests/dcps/synthetic/
 
+# Rust
+rust/target/
+
 # Misc
 *.o
 *.a
