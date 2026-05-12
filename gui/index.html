@@ -33,7 +33,6 @@
       <button data-page="loudness-page">Loudness</button>
       <button data-page="metadata-page">Metadata</button>
       <button data-page="validate-page">Validate</button>
-      <button data-page="preview-page">Preview</button>
       <button data-page="analytics-page">Analytics</button>
       <button data-page="assets-page">Assets</button>
       <button data-page="deliver-page">Deliver</button>
@@ -128,6 +127,24 @@
           </div>
           <button type="submit" class="btn-primary" id="create-btn" disabled>Create IMP</button>
         </form>
+      </section>
+
+      <section class="panel" id="create-preview-panel">
+        <h2>Preview</h2>
+        <div class="field">
+          <label>Video / IMP Directory</label>
+          <button type="button" id="prev-select">File...</button>
+          <button type="button" id="prev-select-dir">Directory...</button>
+          <span id="prev-path" class="path-display">No file selected</span>
+        </div>
+        <div class="field">
+          <label>Replay DCP/IMP</label>
+          <button type="button" id="prev-replay-dcp">Select DCP/IMP folder...</button>
+          <span id="prev-dcp-path" class="path-display">No package selected</span>
+        </div>
+        <div id="preview-controls">
+          <span id="prev-time"></span>
+        </div>
       </section>
 
       <section class="panel" id="output-panel" hidden>
@@ -303,30 +320,6 @@
           </div>
           <button class="btn-primary" id="val-start" disabled>Validate</button>
           <pre id="val-log" style="margin-top:1rem; display:none;"></pre>
-        </section>
-      </section>
-
-      <section class="page" id="preview-page">
-        <section class="panel">
-          <h2>Preview Player</h2>
-          <div class="field">
-            <label>IMP or J2K Directory</label>
-            <button type="button" id="prev-select">Browse...</button>
-            <span id="prev-path" class="path-display">No directory selected</span>
-          </div>
-          <div id="preview-container">
-            <canvas id="preview-canvas" width="1920" height="1080"></canvas>
-            <div id="preview-controls">
-              <button id="prev-back" title="Previous frame">⏮</button>
-              <button id="prev-play" title="Play/Pause">▶</button>
-              <button id="prev-forward" title="Next frame">⏭</button>
-              <span id="prev-frame-num">Frame: 0 / 0</span>
-              <input type="range" id="prev-scrub" min="0" max="0" value="0" />
-            </div>
-            <div id="waveform-container">
-              <canvas id="waveform-canvas" width="1920" height="120"></canvas>
-            </div>
-          </div>
         </section>
       </section>
 

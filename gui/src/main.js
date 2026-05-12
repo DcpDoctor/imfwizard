@@ -1,9 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { open as _open, save } from "@tauri-apps/plugin-dialog";
 import { Command } from "@tauri-apps/plugin-shell";
 import { sendNotification, isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { initTimeline } from "./timeline.js";
 import { initPreview } from "./preview.js";
+
+let lastBrowseDir = null;
+
+// Wrapper that remembers last browse location
+async function open(opts = {}) {
+  const result = await _open({ ...opts, defaultPath: opts.defaultPath || lastBrowseDir || undefined });
+  if (result) {
+    lastBrowseDir = opts.directory ? result : result.replace(/[/\\][^/\\]*$/, '');
+  }
+  return result;
+}
 
 // === Tab navigation ===
 document.querySelectorAll(".nav-tabs button[data-page]").forEach((btn) => {
