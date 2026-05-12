@@ -5,6 +5,17 @@ import { open } from '@tauri-apps/plugin-dialog';
 let lastBrowsePath = null;
 
 export function initPreview() {
+  // Preview source video (button next to browse-video)
+  const previewSourceBtn = document.getElementById('preview-source');
+  previewSourceBtn?.addEventListener('click', () => {
+    const path = document.getElementById('video-path')?.textContent;
+    if (path && !path.startsWith('No ')) {
+      invoke('preview_load', { filePath: path }).catch((e) => {
+        console.error('[preview] Failed to load source:', e);
+      });
+    }
+  });
+
   const selectBtn = document.getElementById('prev-select');
   const selectDirBtn = document.getElementById('prev-select-dir');
   selectBtn?.addEventListener('click', async () => {
