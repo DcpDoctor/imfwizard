@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open as _open, save } from "@tauri-apps/plugin-dialog";
 import { Command } from "@tauri-apps/plugin-shell";
 import { sendNotification, isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
@@ -192,16 +193,39 @@ let audioFile = "";
 let subtitleFile = "";
 let outputDir = "";
 
-document.getElementById("select-video").addEventListener("click", async () => {
-  const selected = await open({ directory: true, title: "Select Image Sequence / J2K Directory" });
-  if (selected) {
-    videoDir = selected;
-    document.getElementById("video-path").textContent = selected;
+function pathSet(id) {
+  const el = document.getElementById(id);
+  if (!el) return false;
+  const t = el.textContent;
+  return t && !t.startsWith("No ");
+}
+
+document.getElementById("browse-video")?.addEventListener("click", async () => {
+  const path = await open({
+    directory: false,
+    multiple: false,
+    filters: [
+      { name: 'Video', extensions: ['mp4', 'mkv', 'mov', 'avi', 'mxf', 'webm'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  });
+  if (path) {
+    videoDir = path;
+    document.getElementById("video-path").textContent = path;
     checkFormReady();
   }
 });
 
-document.getElementById("select-audio").addEventListener("click", async () => {
+document.getElementById("browse-video-folder")?.addEventListener("click", async () => {
+  const dir = await open({ directory: true, title: "Select Image Sequence / J2K Directory" });
+  if (dir) {
+    videoDir = dir;
+    document.getElementById("video-path").textContent = dir;
+    checkFormReady();
+  }
+});
+
+document.getElementById("browse-audio")?.addEventListener("click", async () => {
   const selected = await open({
     filters: [{ name: "WAV Audio", extensions: ["wav"] }],
     title: "Select Audio File",
@@ -225,7 +249,7 @@ document.getElementById("select-subtitle")?.addEventListener("click", async () =
   }
 });
 
-document.getElementById("select-output").addEventListener("click", async () => {
+document.getElementById("browse-output")?.addEventListener("click", async () => {
   const selected = await open({ directory: true, title: "Select Output Directory" });
   if (selected) {
     outputDir = selected;
@@ -237,63 +261,103 @@ document.getElementById("select-output").addEventListener("click", async () => {
 document.getElementById("create-form").addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const title = document.getElementById("title").value;
-  const issuer = document.getElementById("issuer").value;
-  const fps = document.getElementById("fps").value;
-  const colorSpace = document.getElementById("color-space").value;
-  const bitrate = document.getElementById("encode-bitrate").value;
-  const threads = document.getElementById("encode-threads").value;
-  const [fpsNum, fpsDen] = fps.split("/");
-
+  const title = document.getElementById("title").value.trim();
   if (!videoDir || !outputDir) {
-    alert("Please select video directory and output directory.");
+    alert("Please select video/image input and output directory.");
     return;
   }
+
+  const progressDiv = document.getElementById("pipeline-progress");
+  const progressBar = document.getElementById("pipeline-bar");
+  const stageEl = document.getElementById("pipeline-stage");
+  const statsEl = document.getElementById("pipeline-stats");
+  const msgEl = document.getElementById("pipeline-message");
+
+  progressDiv.style.display = "block";
+  progressBar.value = 0;
+  stageEl.textContent = "Queued...";
+  statsEl.textContent = "";
+  msgEl.textContent = "";
 
   const btn = document.getElementById("create-btn");
   btn.disabled = true;
   btn.textContent = "Creating...";
 
-  const outputPanel = document.getElementById("output-panel");
-  const outputLog = document.getElementById("output-log");
-  outputPanel.hidden = false;
-  outputLog.textContent = "Starting IMP creation...\n";
+  const unlisten = await listen("pipeline-progress", (event) => {
+    const p = event.payload;
+    if (currentJobId && p.job_id !== currentJobId) return;
+
+    progressBar.value = p.percent;
+    stageEl.textContent = p.stage.charAt(0).toUpperCase() + p.stage.slice(1);
+    msgEl.textContent = p.message;
+
+    const elapsed = formatTime(p.elapsed_secs);
+    let remaining = "";
+    if (p.percent > 0 && p.percent < 100) {
+      const eta = (p.elapsed_secs / p.percent) * (100 - p.percent);
+      remaining = ` | ETA: ${formatTime(eta)}`;
+    }
+    const fpsStr = p.fps > 0 ? ` | ${p.fps.toFixed(1)} fps` : "";
+    statsEl.textContent = `${elapsed}${fpsStr}${remaining}`;
+
+    if (p.stage === "done") {
+      btn.disabled = false;
+      btn.textContent = "Create IMP";
+      notify("IMF Wizard", `IMP "${title}" created successfully`);
+      unlisten();
+    } else if (p.stage === "error") {
+      btn.disabled = false;
+      btn.textContent = "Create IMP";
+      notify("IMF Wizard", "IMP creation failed");
+      unlisten();
+    }
+  });
 
   try {
-    const args = [
-      "create",
-      "--title", title,
-      "--issuer", issuer,
-      "--video", videoDir,
-      "--output", outputDir,
-      "--fps-num", fpsNum,
-      "--fps-den", fpsDen,
-    ];
-
-    if (audioFile) args.push("--audio", audioFile);
-    if (subtitleFile) args.push("--subtitle", subtitleFile);
-    if (colorSpace !== "bt709") args.push("--color-space", colorSpace);
-    if (bitrate && bitrate !== "250") args.push("--bitrate", bitrate);
-    if (threads && threads !== "0") args.push("--threads", threads);
-
-    const command = Command.sidecar("imfwizard", args);
-    const output = await command.execute();
-
-    if (output.code === 0) {
-      outputLog.textContent += output.stdout + "\nDone!\n";
-      addRecentProject(outputDir, title);
-      notify("IMF Wizard", `IMP "${title}" created successfully`);
-    } else {
-      outputLog.textContent += "ERROR:\n" + output.stderr + "\n";
-      notify("IMF Wizard", "IMP creation failed");
-    }
+    currentJobId = await invoke("submit_job", {
+      videoPath: videoDir,
+      title: title,
+      outputDir: outputDir,
+      audioPath: audioFile || null,
+    });
   } catch (err) {
-    outputLog.textContent += "Error: " + err + "\n";
+    msgEl.textContent = "Error: " + err;
+    stageEl.textContent = "Failed";
+    btn.disabled = false;
+    btn.textContent = "Create IMP";
+    unlisten();
   }
-
-  btn.disabled = false;
-  btn.textContent = "Create IMP";
 });
+
+let currentJobId = null;
+let paused = false;
+
+// Pause / Resume
+document.getElementById("pipeline-pause")?.addEventListener("click", async () => {
+  if (paused) {
+    await invoke("resume_job");
+    paused = false;
+    document.getElementById("pipeline-pause").textContent = "⏸";
+  } else {
+    await invoke("pause_job");
+    paused = true;
+    document.getElementById("pipeline-pause").textContent = "▶";
+    document.getElementById("pipeline-stage").textContent += " (paused)";
+  }
+});
+
+// Cancel
+document.getElementById("pipeline-cancel")?.addEventListener("click", async () => {
+  if (currentJobId) {
+    await invoke("cancel_job", { jobId: currentJobId });
+  }
+});
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
 
 // === Supplemental IMP ===
 let supOvDir = "", supVideoDir = "", supAudioFile = "", supOutputDir = "";
