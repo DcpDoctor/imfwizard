@@ -37,10 +37,6 @@ add_subdirectory(extern/spdlog EXCLUDE_FROM_ALL)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 add_subdirectory(extern/asdcplib EXCLUDE_FROM_ALL)
 
-# postkit (common post-production library) — must come before dcpdoctor
-# so dcpdoctor's guarded add_subdirectory(extern/postkit) is skipped
-add_subdirectory(extern/postkit EXCLUDE_FROM_ALL)
-
 # dcpdoctor (validation/QC library)
 add_subdirectory(extern/dcpdoctor EXCLUDE_FROM_ALL)
 
@@ -123,7 +119,6 @@ if(WIN32)
         libasdcp
         libkumu
         dcpdoctor_core
-        postkit_core
         ws2_32)
 else()
     target_link_libraries(imfwizard_core PUBLIC
@@ -134,8 +129,7 @@ else()
         libas02
         libasdcp
         libkumu
-        dcpdoctor_core
-        postkit_core)
+        dcpdoctor_core)
 endif()
 
 # CLI tool
